@@ -1,6 +1,8 @@
 package cpu
 
 import (
+	"encoding/hex"
+	"fmt"
 	"github.com/vfreex/gones/pkg/emulator/memory"
 	"log"
 )
@@ -51,64 +53,43 @@ func (cpu *Cpu) Init() {
 }
 
 func (cpu *Cpu) Test() {
-	//log.Printf("%v\n", cpu)
-	//cpu.Reset()
-	//log.Printf("%v\n", cpu)
-
-	//pc := memory.Ptr(0x8000)
-	//for pc < 0x8200 {
-	//	op := cpu.Memory.Peek(pc)
-	//	opName, length := Decode(op)
-	//	nextPC := pc + 1
-	//	var operand []byte = nil
-	//	if length > 1 {
-	//		operand = make([]byte, length-1)
-	//		switch length {
-	//		case 2:
-	//			operand[0] = cpu.Memory.Peek(nextPC)
-	//			nextPC++
-	//		case 3:
-	//			operand[0] = cpu.Memory.Peek(nextPC)
-	//			nextPC++
-	//			operand[1] = cpu.Memory.Peek(nextPC)
-	//			nextPC++
-	//		}
-	//	}
-	//	log.Printf("will exec IP=%x: OP=%x %s %v \n", pc, op, opName, operand)
-	//	cpu.ExecInstruction(op, operand)
-	//	pc = nextPC
-	//}
-	for cpu.PC < 0x8200 {
-		//op := cpu.Memory.Peek(cpu.PC)
-		//opName, am := Decode(op)
-		//operands, _ := cpu.ReadOperands(am)
-		//log.Printf("will exec opcode=%02x %s (%s) %v \n", op, opName, am, operands)
-		cycles, _ := cpu.ExecOneInstruction()
+	for cpu.PC < 0x810f {
+		cycles := cpu.ExecOneInstruction()
 		log.Printf("spent %d cycles", cycles)
-		//cpu.PC += bytes
 	}
 
 }
 
-func (cpu *Cpu) ExecOneInstruction() (cycles int, bytes uint16) {
-	opcode, _, cycles0 := cpu.ReadNextInstruction()
-	info := &InstructionInfos[opcode]
-	length := info.AddressingMode.GetArgumentCount() + 1
-
+func (cpu *Cpu) ExecOneInstruction() (cycles int) {
+	opcode := cpu.Memory.Peek(cpu.PC)
 	cpu.PC++
+	info := &InstructionInfos[opcode]
 
-	operandAddr, cycles1 := cpu.AddressOperand(info.AddressingMode)
-
+	arguments := make([]byte, info.AddressingMode.GetArgumentCount())
+	switch info.AddressingMode.GetArgumentCount() {
+	case 2:
+		arguments[1] = cpu.Memory.Peek(cpu.PC + 1)
+		fallthrough
+	case 1:
+		arguments[0] = cpu.Memory.Peek(cpu.PC + 0)
+	}
+	log.Printf("got instruction at %04x: %02x(%s %s) %s",
+		cpu.PC, opcode, info.Nemonics, info.AddressingMode, hex.EncodeToString(arguments))
 	handler := opcodeHandlers[opcode]
 	if handler == nil {
 		log.Fatalf("opcode %02x (%s) is not supported", opcode, info.Nemonics)
 	}
+	if handler.AddressingMode != info.AddressingMode {
+		panic(fmt.Errorf("BUG: incorrect addressing mode: got %s, expected %s", handler.AddressingMode, info.AddressingMode))
+	}
+
+	operandAddr, cycles1 := cpu.AddressOperand(handler.AddressingMode)
 	cpu.logRegisters()
-	log.Printf("will exec opcode=%02x %s (%s) %x \n", opcode, info.Nemonics, info.AddressingMode, operandAddr)
-	cycles2 := handler(cpu, operandAddr)
+	log.Printf("will exec opcode=%02x %s (%s) %x \n", opcode, info.Nemonics, handler.AddressingMode, operandAddr)
+	cycles2 := handler.Executor(cpu, operandAddr)
 	cpu.logRegisters()
 
-	return cycles0 + cycles1 + cycles2, length
+	return 1 + cycles1 + cycles2
 }
 
 func (cpu *Cpu) logRegisters() {

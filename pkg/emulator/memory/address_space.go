@@ -59,7 +59,7 @@ func (as *AddressSpaceImpl) lookupMappedMemory(addr Ptr) (*MMapEntry, Ptr) {
 func (as *AddressSpaceImpl) Peek(addr Ptr) byte {
 	entry, mappedAddr := as.lookupMappedMemory(addr)
 	if entry.Mode&MMAP_MODE_READ == 0 {
-		panic(fmt.Errorf("permmission denied when trying to read 0x%x", addr))
+		panic(fmt.Errorf("permission denied when trying to read 0x%x", addr))
 	}
 	return entry.Memory.Peek(mappedAddr)
 }
@@ -67,7 +67,7 @@ func (as *AddressSpaceImpl) Peek(addr Ptr) byte {
 func (as *AddressSpaceImpl) Poke(addr Ptr, val byte) {
 	entry, mappedAddr := as.lookupMappedMemory(addr)
 	if entry.Mode&MMAP_MODE_WRITE == 0 {
-		panic(fmt.Errorf("permmission denied when trying to write %x", addr))
+		panic(fmt.Errorf("permission denied when trying to write %x", addr))
 	}
 	entry.Memory.Poke(mappedAddr, val)
 }

@@ -1,6 +1,8 @@
 package ram
 
-import "github.com/vfreex/gones/pkg/emulator/memory"
+import (
+	"github.com/vfreex/gones/pkg/emulator/memory"
+)
 
 type RAM struct {
 	data []byte

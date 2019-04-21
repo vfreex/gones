@@ -1,7 +1,7 @@
 package main
 
 import (
-	cpu2 "github.com/vfreex/gones/pkg/emulator/cpu"
+	"github.com/vfreex/gones/pkg/emulator/cpu"
 	"github.com/vfreex/gones/pkg/emulator/memory"
 	"github.com/vfreex/gones/pkg/emulator/ram"
 	"github.com/vfreex/gones/pkg/emulator/rom/ines"
@@ -27,7 +27,8 @@ func main() {
 	mainRam := ram.NewMainRAM()
 
 	cpuMemoryAddress := NewCpuAddressSpace(mainRam, rom)
-	cpu := cpu2.NewCpu(cpuMemoryAddress)
+	cpu := cpu.NewCpu(cpuMemoryAddress)
+	//cpu.Init()
 	cpu.Test()
 }
 

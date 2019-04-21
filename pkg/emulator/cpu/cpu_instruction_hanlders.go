@@ -1,168 +1,60 @@
 package cpu
 
 import (
-	"encoding/hex"
-	"fmt"
 	"github.com/vfreex/gones/pkg/emulator/memory"
 	"log"
 )
 
-var opcodeHandlers = [256]InstructionHandler{
-	0x10: (*Cpu).ExecBPL,
-	0x24: (*Cpu).ExecBIT,
-	0x2c: (*Cpu).ExecBIT,
-	0x78: (*Cpu).ExecSEI,
-	0x86: (*Cpu).ExecSTX,
-	0x8e: (*Cpu).ExecSTX,
-	0x96: (*Cpu).ExecSTX,
-	0x9a: (*Cpu).ExecTXS,
-	0xd8: (*Cpu).ExecCLD,
-	0xa2: (*Cpu).ExecLDX,
-	0xc8: (*Cpu).ExecINY,
-	0xe8: (*Cpu).ExecINX,
-	0xa9: (*Cpu).ExecLDA,
-	0xa5: (*Cpu).ExecLDA,
-	0xb5: (*Cpu).ExecLDA,
-	0xad: (*Cpu).ExecLDA,
-	0xbd: (*Cpu).ExecLDA,
-	0xb9: (*Cpu).ExecLDA,
-	0xa1: (*Cpu).ExecLDA,
-	0xb1: (*Cpu).ExecLDA,
+var opcodeHandlers = [256]*InstructionHandler{
+	0x10: {(*Cpu).ExecBPL, REL},
+
+	0x24: {(*Cpu).ExecBIT, ZP},
+	0x2c: {(*Cpu).ExecBIT, ABS},
+
+	0x78: {(*Cpu).ExecSEI, IMP},
+	0xd8: {(*Cpu).ExecCLD, IMP},
+
+	0x86: {(*Cpu).ExecSTX, ZP},
+	0x96: {(*Cpu).ExecSTX, ZPY},
+	0x8e: {(*Cpu).ExecSTX, ABS},
+
+	0x9a: {(*Cpu).ExecTXS, IMP},
+
+
+	0xa2: {(*Cpu).ExecLDX, IMM},
+	0xa6: {(*Cpu).ExecLDX, ZP},
+	0xb6: {(*Cpu).ExecLDX, ZPY},
+	0xae: {(*Cpu).ExecLDX, ABS},
+	0xbe: {(*Cpu).ExecLDX, ABY},
+
+	0xc8: {(*Cpu).ExecINY, IMP},
+	0xe8: {(*Cpu).ExecINX, IMP},
+
+	0xa9: {(*Cpu).ExecLDA, IMM},
+	0xa5: {(*Cpu).ExecLDA, ZP},
+	0xb5: {(*Cpu).ExecLDA, ZPX},
+	0xad: {(*Cpu).ExecLDA, ABS},
+	0xbd: {(*Cpu).ExecLDA, ABX},
+	0xb9: {(*Cpu).ExecLDA, ABY},
+	0xa1: {(*Cpu).ExecLDA, IZX},
+	0xb1: {(*Cpu).ExecLDA, IZY},
+
+	0x69: {(*Cpu).ExecADC, IMM},
+	0x65: {(*Cpu).ExecADC, ZP},
+	0x75: {(*Cpu).ExecADC, ZPX},
+	0x6d: {(*Cpu).ExecADC, ABS},
+	0x7d: {(*Cpu).ExecADC, ABX},
+	0x79: {(*Cpu).ExecADC, ABY},
+	0x61: {(*Cpu).ExecADC, IZX},
+	0x71: {(*Cpu).ExecADC, IZY},
 }
 
-func (cpu *Cpu) AddressOperand(am AddressingMode) (memory.Ptr, int) {
-	switch am {
-	case IMP:
-		return 0, 0
-	case IMM:
-		return cpu.AddressImm()
-	case ZP:
-		return cpu.AddressZP()
-	case ZPX:
-		return cpu.AddressZP()
-	case ZPY:
-		return cpu.AddressZPY()
-	case ABS:
-		return cpu.AddressAbs()
-	case ABX:
-		return cpu.AddressAbX()
-	case ABY:
-		return cpu.AddressAbY()
-	case REL:
-		return cpu.AddressRel()
-	case IND:
-		return cpu.AddressInd()
-	case IZX:
-		return cpu.AddressIzx()
-	case IZY:
-		return cpu.AddressIzy()
-	default:
-		panic(fmt.Errorf("unsupported addressing mode: %s", am))
-	}
-}
+type InstructionExecutor func(cpu *Cpu, operandAddr memory.Ptr) (cyclesTook int)
 
-func isCrossPage(addr memory.Ptr, offset uint8) bool {
-	return addr&0xff00 != (addr+memory.Ptr(offset))&0xff00
+type InstructionHandler struct {
+	Executor       InstructionExecutor
+	AddressingMode AddressingMode
 }
-
-func (cpu *Cpu) AddressImm() (memory.Ptr, int) {
-	addr := cpu.PC
-	cpu.PC++
-	return addr, 0
-}
-
-func (cpu *Cpu) AddressZP() (memory.Ptr, int) {
-	addr, _ := cpu.AddressImm()
-	addr = memory.Ptr(cpu.Memory.Peek(addr))
-	return addr, 1
-}
-
-func (cpu *Cpu) AddressZPX() (memory.Ptr, int) {
-	addr, _ := cpu.AddressImm()
-	addr = memory.Ptr(cpu.Memory.Peek(addr)+cpu.X) & 0xff
-	return addr, 2
-}
-
-func (cpu *Cpu) AddressZPY() (memory.Ptr, int) {
-	addr, _ := cpu.AddressImm()
-	addr = memory.Ptr(cpu.Memory.Peek(addr)+cpu.Y) & 0xff
-	return addr, 2
-}
-
-func (cpu *Cpu) AddressAbs() (memory.Ptr, int) {
-	low, _ := cpu.AddressImm()
-	high, _ := cpu.AddressImm()
-	addr := (memory.Ptr(cpu.Memory.Peek(high)) << 8) | memory.Ptr(cpu.Memory.Peek(low))
-	return addr, 2
-}
-func (cpu *Cpu) AddressAbX() (memory.Ptr, int) {
-	addr, _ := cpu.AddressAbs()
-	addr += memory.Ptr(cpu.X)
-	if isCrossPage(addr, cpu.X) {
-		return addr, 3
-	}
-	return addr, 2
-}
-func (cpu *Cpu) AddressAbY() (memory.Ptr, int) {
-	addr, _ := cpu.AddressAbs()
-	addr += memory.Ptr(cpu.Y)
-	if isCrossPage(addr, cpu.Y) {
-		return addr, 3
-	}
-	return addr, 2
-}
-
-func (cpu *Cpu) AddressRel() (memory.Ptr, int) {
-	addr, _ := cpu.AddressImm()
-	return cpu.PC + memory.PtrDist(int8(cpu.Memory.Peek(addr))), 1
-}
-
-func (cpu *Cpu) AddressInd() (memory.Ptr, int) {
-	addr, _ := cpu.AddressAbs()
-	low := cpu.Memory.Peek(addr)
-	high := cpu.Memory.Peek((addr + 1) & 0xff)
-	addr2 := memory.Ptr(high)<<8 | memory.Ptr(low)
-	return addr2, 4
-}
-
-func (cpu *Cpu) AddressIzx() (memory.Ptr, int) {
-	addr, _ := cpu.AddressZPX()
-	low := memory.Ptr(cpu.Memory.Peek(addr))
-	high := memory.Ptr(cpu.Memory.Peek((addr + 1) & 0xff))
-	return high<<8 | low, 4
-}
-
-func (cpu *Cpu) AddressIzy() (memory.Ptr, int) {
-	addr, _ := cpu.AddressZP()
-	low := memory.Ptr(cpu.Memory.Peek(addr))
-	high := memory.Ptr(cpu.Memory.Peek((addr + 1) & 0xff))
-	addr2 := high<<8 | low
-	if isCrossPage(addr2, cpu.Y) {
-		return addr2 + memory.Ptr(cpu.Y), 4
-	}
-	return addr2 + memory.Ptr(cpu.Y), 3
-}
-
-func (cpu *Cpu) ReadNextInstruction() (byte, []byte, int) {
-	opcode := cpu.Memory.Peek(cpu.PC)
-	info := &InstructionInfos[opcode]
-	arguments := make([]byte, info.AddressingMode.GetArgumentCount())
-	cycles := 1
-	switch info.AddressingMode.GetArgumentCount() {
-	case 2:
-		arguments[1] = cpu.Memory.Peek(cpu.PC + 2)
-		//cycles++
-		fallthrough
-	case 1:
-		arguments[0] = cpu.Memory.Peek(cpu.PC + 1)
-		//cycles++
-	}
-	log.Printf("got instruction at %04x: %02x(%s %s) %s",
-		cpu.PC, opcode, info.Nemonics, info.AddressingMode, hex.EncodeToString(arguments))
-	return opcode, arguments, cycles
-}
-
-type InstructionHandler func(cpu *Cpu, operandAddr memory.Ptr) (cyclesTook int)
 
 func (cpu *Cpu) ExecSEI(operandAddr memory.Ptr) int {
 	log.Printf("Exec SEI")
@@ -241,5 +133,22 @@ func (cpu *Cpu) ExecBPL(operandAddr memory.Ptr) int {
 		cpu.PC = operandAddr
 		log.Printf("jump to PC=%2x", operandAddr)
 	}
+	return 1
+}
+
+func (cpu *Cpu) ExecADC(operandAddr memory.Ptr) int {
+	log.Printf("Exec ADC")
+	operand := cpu.Memory.Peek(operandAddr)
+	r := uint16(cpu.A) + uint16(operand)
+	if cpu.P&PFLAG_C != 0 {
+		r++
+	}
+	r2 := uint8(r)
+	cpu.P.Set(PFLAG_C, r > 0xFF)
+	// https://en.wikipedia.org/wiki/Overflow_flag
+	cpu.P.Set(PFLAG_V, (cpu.A^operand)&0x80 == 0 && (cpu.A^r2)&0x80 != 0)
+	cpu.P.Set(PFLAG_Z, r2 == 0)
+	cpu.P.Set(PFLAG_N, r2 > 0x7f)
+	cpu.A = r2
 	return 1
 }
