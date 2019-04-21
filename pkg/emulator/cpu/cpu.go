@@ -44,9 +44,9 @@ func (cpu *Cpu) Init() {
 		Internal memory ($0000-$07FF) has unreliable startup state. Some machines may have consistent RAM contents at power-on, but others do not.
 		Emulators often implement a consistent RAM startup state (e.g. all $00 or $FF, or a particular pattern), and flash carts like the PowerPak may partially or fully initialize RAM before starting a program, so an NES programmer must be careful not to rely on the startup contents of RAM.
 	*/
-	cpu.P = 0x34
-	cpu.A, cpu.X, cpu.Y = 0, 0, 0
-	cpu.SP = 0xfd
+	//cpu.P = 0x34
+	//cpu.A, cpu.X, cpu.Y = 0, 0, 0
+	//cpu.SP = 0xfd
 	cpu.PC = 0x8000
 }
 
@@ -55,58 +55,62 @@ func (cpu *Cpu) Test() {
 	//cpu.Reset()
 	//log.Printf("%v\n", cpu)
 
-	pc := memory.Ptr(0x8000)
-	for pc < 0x8200 {
-		op := cpu.Memory.Peek(pc)
-		opName, length := Decode(op)
-		nextPC := pc + 1
-		var operand []byte = nil
-		if length > 1 {
-			operand = make([]byte, length-1)
-			switch length {
-			case 2:
-				operand[0] = cpu.Memory.Peek(nextPC)
-				nextPC++
-			case 3:
-				operand[0] = cpu.Memory.Peek(nextPC)
-				nextPC++
-				operand[1] = cpu.Memory.Peek(nextPC)
-				nextPC++
-			}
-		}
-		log.Printf("IP=%x: OP=%x %s %v \n", pc, op, opName, operand)
-		cpu.ExecInstruction(op, operand)
-		pc = nextPC
+	//pc := memory.Ptr(0x8000)
+	//for pc < 0x8200 {
+	//	op := cpu.Memory.Peek(pc)
+	//	opName, length := Decode(op)
+	//	nextPC := pc + 1
+	//	var operand []byte = nil
+	//	if length > 1 {
+	//		operand = make([]byte, length-1)
+	//		switch length {
+	//		case 2:
+	//			operand[0] = cpu.Memory.Peek(nextPC)
+	//			nextPC++
+	//		case 3:
+	//			operand[0] = cpu.Memory.Peek(nextPC)
+	//			nextPC++
+	//			operand[1] = cpu.Memory.Peek(nextPC)
+	//			nextPC++
+	//		}
+	//	}
+	//	log.Printf("will exec IP=%x: OP=%x %s %v \n", pc, op, opName, operand)
+	//	cpu.ExecInstruction(op, operand)
+	//	pc = nextPC
+	//}
+	for cpu.PC < 0x8200 {
+		//op := cpu.Memory.Peek(cpu.PC)
+		//opName, am := Decode(op)
+		//operands, _ := cpu.ReadOperands(am)
+		//log.Printf("will exec opcode=%02x %s (%s) %v \n", op, opName, am, operands)
+		cycles, _ := cpu.ExecOneInstruction()
+		log.Printf("spent %d cycles", cycles)
+		//cpu.PC += bytes
 	}
 
 }
 
-func (cpu *Cpu) ExecInstruction(opcode byte, operands []byte) {
+func (cpu *Cpu) ExecOneInstruction() (cycles int, bytes uint16) {
+	opcode, _, cycles0 := cpu.ReadNextInstruction()
 	info := &InstructionInfos[opcode]
-	length := uint16(0)
-	switch info.AddressingMode {
-	case IMP:
-		length = 1
-	case IND, ABS, ABX, ABY:
-		length = 3
-	default:
-		length = 2
+	length := info.AddressingMode.GetArgumentCount() + 1
+
+	cpu.PC++
+
+	operandAddr, cycles1 := cpu.AddressOperand(info.AddressingMode)
+
+	handler := opcodeHandlers[opcode]
+	if handler == nil {
+		log.Fatalf("opcode %02x (%s) is not supported", opcode, info.Nemonics)
 	}
-	log.Printf("EXEC: PC=%04x, %02x %v - %s %v", cpu.PC, opcode, operands, info.Nemonics, operands)
-	cpu.PC += length
+	cpu.logRegisters()
+	log.Printf("will exec opcode=%02x %s (%s) %x \n", opcode, info.Nemonics, info.AddressingMode, operandAddr)
+	cycles2 := handler(cpu, operandAddr)
+	cpu.logRegisters()
+
+	return cycles0 + cycles1 + cycles2, length
 }
 
-//func (cpu *Cpu) Push(b byte) {
-//	cpu.Memory[SP_BASE|uint16(cpu.SP)] = b
-//	cpu.SP--
-//}
-//
-//func (cpu *Cpu) Pop() byte {
-//	cpu.SP++
-//	return cpu.Memory[SP_BASE|uint16(cpu.SP)]
-//}
-
-//func (cpu *Cpu) Dump() {
-//	p := 0x8000
-//	log.Printf("OP: %x \n", cpu.Memory[p])
-//}
+func (cpu *Cpu) logRegisters() {
+	log.Printf("PC=%04x, P=%s, SP=%02x, A=%02x, X=%02x, Y=%02x", cpu.PC, cpu.P, cpu.SP, cpu.A, cpu.X, cpu.Y)
+}

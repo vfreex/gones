@@ -1,5 +1,9 @@
 package cpu
 
+import (
+	"fmt"
+)
+
 /*
 This register points the address from which the next instruction
           byte (opcode or parameter) will be fetched. Unlike other
@@ -28,26 +32,26 @@ This 8-bit register stores the state of the processor. The bits in
           this register are called flags. Most of the flags have something
           to do with arithmetic operations.
 */
-type ProcessorStatus = uint8
+type ProcessorStatus uint8
 
 const (
 	// Carry flag
-	C_FLAG = 1
+	PFLAG_C ProcessorStatus = 1 << iota
 	// Zero flag
-	Z_FLAG = 1 << 1
+	PFLAG_Z
 	// Interrupt disable flag
-	I_FLAG = 1 << 2
+	PFLAG_I
 	// Decimal mode flag.
 	// 2A03 does not support BCD mode so although the flag can be set, its value will be ignored.
-	D_FLAG = 1 << 3
+	PFLAG_D
 	// Break flag
-	B_FLAG = 1 << 4
+	PFLAG_B
 	// unused flag, alway 1
-	UNUSED_FLAG = 1 << 5
+	PFLAG_UNUSED
 	// oVerflow flag
-	V_FLAG = 1 << 6
+	PFLAG_V
 	// Negative flag
-	N_FLAG = 1 << 7
+	PFLAG_N
 )
 
 /*
@@ -63,3 +67,40 @@ type Accumulator = uint8
 Register for addressing data with indices
 */
 type IndexRegister = uint8
+
+func (p ProcessorStatus) String() string {
+	flags := []byte("00000000")
+	if p&PFLAG_C != 0 {
+		flags[7] = 'C'
+	}
+	if p&PFLAG_Z != 0 {
+		flags[6] = 'Z'
+	}
+	if p&PFLAG_I != 0 {
+		flags[5] = 'I'
+	}
+	if p&PFLAG_D != 0 {
+		flags[4] = 'D'
+	}
+	if p&PFLAG_B != 0 {
+		flags[3] = 'B'
+	}
+	if p&PFLAG_UNUSED != 0 {
+		flags[2] = '1'
+	}
+	if p&PFLAG_V != 0 {
+		flags[1] = 'V'
+	}
+	if p&PFLAG_N != 0 {
+		flags[0] = 'N'
+	}
+	return fmt.Sprintf("%02x(%s)", byte(p), string(flags))
+}
+
+func (p *ProcessorStatus) Set(flag ProcessorStatus, val bool) {
+	if val {
+		*p |= flag
+	} else {
+		*p &= ^flag
+	}
+}

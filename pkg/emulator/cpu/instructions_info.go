@@ -1,25 +1,5 @@
 package cpu
 
-//type Instruction struct {
-//	Name   string
-//	OpCode byte
-//	Bytes  int
-//	Cycles int
-//}
-//
-//var Instructions = [256]Instruction{
-//	0x78: {"SEI", 0x78, 1, 2},
-//	0xD8: {"CLD", 0xD8, 1, 2},
-//	0xA2: {"LDX", 0xA2, 2, 2},
-//}
-
-// mnemonics, opcode, operands
-
-type Instruction struct {
-	Opcode   byte
-	Operands []byte
-}
-
 type InstructionInfo struct {
 	OpCode         byte
 	Nemonics       string
@@ -287,7 +267,7 @@ var InstructionInfos = [256]InstructionInfo{
 	0xff: {0xff, "ISC", ABX, 7, false},
 }
 
-func Decode(opcode byte) (string, int) {
+func Decode(opcode byte) (string, AddressingMode) {
 	// Most instructions that explicitly reference memory locations have bit patterns of the form aaabbbcc.
 	// The aaa and cc bits determine the opcode, and the bbb bits determine the addressing mode.
 	//cc := opcode & 0x3
@@ -296,14 +276,5 @@ func Decode(opcode byte) (string, int) {
 	//log.Printf("opcode=%x, aaa=%x, bbb=%x, cc=%x", opcode, aaa, bbb, cc)
 	info := &InstructionInfos[opcode]
 	opName := info.Nemonics
-	length := 0
-	switch info.AddressingMode {
-	case IMP:
-		length = 1
-	case IND, ABS, ABX, ABY:
-		length = 3
-	default:
-		length = 2
-	}
-	return opName, length
+	return opName, info.AddressingMode
 }
