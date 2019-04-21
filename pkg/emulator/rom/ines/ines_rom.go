@@ -31,6 +31,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"github.com/vfreex/gones/pkg/emulator/memory"
 	"io"
 )
 
@@ -39,6 +40,7 @@ const (
 	PRG_BANK_SIZE     = 16 * 1024 // bytes in a PRG/ROM bank
 	CHR_BANK_SIZE     = 8 * 1024  // bytes in a CHR/VROM bank
 	PRG_RAM_BANK_SIZE = 8 * 1024  // bytes in a RPG RAM bank
+	TRAINER_SIZE      = 512       // optional trainer size in bytes
 )
 
 const (
@@ -53,7 +55,7 @@ const (
 )
 
 const (
-	MAPPER_NORM = 0,
+	MAPPER_NORM = 0
 )
 
 type INesHeader struct {
@@ -68,10 +70,10 @@ type INesHeader struct {
 }
 type INesRom struct {
 	Header  INesHeader
-	Trainer *bytes.Buffer
-	Prg     *bytes.Buffer
-	Chr     *bytes.Buffer
-	Extra   *bytes.Buffer
+	Trainer []byte
+	Prg     []byte
+	Chr     []byte
+	Extra   []byte
 }
 
 func NewINesRom(reader io.Reader) (*INesRom, error) {
@@ -80,46 +82,84 @@ func NewINesRom(reader io.Reader) (*INesRom, error) {
 	if err := binary.Read(reader, binary.LittleEndian, header); err != nil {
 		return rom, err
 	}
-	if string(rom.Header.Magic[:]) != INES_FILE_MAGIC {
+	if string(header.Magic[:]) != INES_FILE_MAGIC {
 		return rom, fmt.Errorf("no valid header is found")
 	}
 
-	rom.Trainer = &bytes.Buffer{}
-
-	prgBuf := make([]byte, 0, PRG_BANK_SIZE*int(header.PrgSize))
-	rom.Prg = bytes.NewBuffer(prgBuf)
-	if _, err := io.CopyN(rom.Prg, reader, int64(rom.Prg.Cap())); err != nil {
-		return rom, err
+	if header.GetMapperType() != 0 {
+		return rom, fmt.Errorf("unsupported Mapper type: %d", header.GetMapperType())
 	}
 
-	chrBuf := make([]byte, 0, CHR_BANK_SIZE*int(header.ChrSize))
-	rom.Chr = bytes.NewBuffer(chrBuf)
-	if _, err := io.CopyN(rom.Chr, reader, int64(rom.Chr.Cap())); err != nil {
+	if header.Flags6&FLAGS6_TRAINER_ON != 0 {
+		rom.Trainer = make([]byte, TRAINER_SIZE)
+		if _, err := reader.Read(rom.Trainer); err != nil {
+			return rom, err
+		}
+	}
+
+	rom.Prg = make([]byte, PRG_BANK_SIZE*int(header.PrgSize))
+	if _, err := reader.Read(rom.Prg); err != nil {
 		return rom, err
 	}
-	rom.Extra = &bytes.Buffer{}
-	if _, err := io.Copy(rom.Extra, reader); err != nil {
+
+	rom.Chr = make([]byte, CHR_BANK_SIZE*int(header.ChrSize))
+	if _, err := reader.Read(rom.Chr); err != nil {
 		return rom, err
 	}
+	extra := &bytes.Buffer{}
+	if _, err := io.Copy(extra, reader); err != nil {
+		return rom, err
+	}
+	rom.Extra = extra.Bytes()
 	return rom, nil
 }
 func (p *INesRom) String() string {
-	return fmt.Sprintf("iNESRom{header: %v, trainer: %d, PRG: %d, CHR: %d, EXTRA: %d}", &p.Header, p.Trainer.Len(), p.Prg.Len(), p.Chr.Len(), p.Extra.Len())
+	return fmt.Sprintf("iNESRom{header: %v, trainer: %d, PRG: %d, CHR: %d, EXTRA: %d}", &p.Header, len(p.Trainer), len(p.Prg), len(p.Chr), len(p.Extra))
 }
 func (p *INesRom) MatchesFileMagic(reader io.Reader) (bool, error) {
 	magic := make([]byte, 4)
 	if n, err := reader.Read(magic); n != 4 || string(magic) != INES_FILE_MAGIC {
 		return false, err
 	}
-
 	return true, nil
 }
+
+//func (p *INesRom) Load(memory []byte) error {
+//	switch p.Header.PrgSize {
+//	case 1:
+//		copy(memory[0x8000:0xc000], p.Prg[:PRG_BANK_SIZE])
+//		copy(memory[0xc000:0x10000], p.Prg[:PRG_BANK_SIZE])
+//	case 2:
+//		copy(memory[0x8000:0xc000], p.Prg[:PRG_BANK_SIZE])
+//		copy(memory[0xc000:0x10000], p.Prg[PRG_BANK_SIZE:PRG_BANK_SIZE*2])
+//	default:
+//		return fmt.Errorf("mapper not supported")
+//	}
+//	return nil
+//}
+
+func (p *INesRom) Peek(addr memory.Ptr) byte {
+	if addr < 0x8000 {
+		panic(fmt.Errorf("invalid ROM address 0x%x", addr))
+	}
+	if p.Header.PrgSize < 2 {
+		return p.Prg[(addr-0x8000)&0xbfff]
+	} else {
+		return p.Prg[addr-0x8000]
+	}
+}
+
+func (p *INesRom) Poke(addr memory.Ptr, val byte) {
+	panic(fmt.Errorf("trying to write to ROM at address 0x%x", addr))
+}
+
 func (h *INesHeader) String() string {
 	m := map[string]interface{}{
 		"type":          "iNES",
 		"mapper_type":   h.GetMapperType(),
 		"prg_bytes":     int(h.PrgSize) * PRG_BANK_SIZE,
 		"chr_bytes":     int(h.ChrSize) * CHR_BANK_SIZE,
+		"trainer":       h.Flags6&FLAGS6_TRAINER_ON != 0,
 		"prg_ram_bytes": PRG_RAM_BANK_SIZE,
 	}
 	if h.PrgRamSize > 0 {
