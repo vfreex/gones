@@ -5,6 +5,13 @@ import (
 	"sort"
 )
 
+type AddressSpace interface {
+	Memory
+	MapMemory(offset Ptr, length PtrDist, mode MMapMode, mappedMemory Memory, translator AddressTranslator)
+}
+
+type AddressTranslator func(addr Ptr) Ptr
+
 type MMapMode uint
 
 const (
@@ -14,49 +21,53 @@ const (
 )
 
 type MMapEntry struct {
-	Offset    Ptr
-	Length    PtrDist
-	Mode      MMapMode
-	Memory    Memory
-	Tanslator AddressTranslator
+	Offset     Ptr
+	Length     PtrDist
+	Mode       MMapMode
+	Memory     Memory
+	Translator AddressTranslator
 }
 
-type AddressTranslator func(addr Ptr) Ptr
-
-type AddressSpace struct {
-	MMapEntries []MMapEntry
+type AddressSpaceImpl struct {
+	mMapEntries []MMapEntry
 }
 
-func (as *AddressSpace) findMMapEntry(addr Ptr) *MMapEntry {
-	index := sort.Search(len(as.MMapEntries), func(i int) bool {
-		return as.MMapEntries[i].Offset > addr
+func (as *AddressSpaceImpl) MapMemory(offset Ptr, length PtrDist, mode MMapMode, mappedMemory Memory, translator AddressTranslator) {
+	as.mMapEntries = append(as.mMapEntries, MMapEntry{
+		Offset:     offset,
+		Length:     length,
+		Mode:       mode,
+		Memory:     mappedMemory,
+		Translator: translator,
+	})
+}
+
+func (as *AddressSpaceImpl) lookupMappedMemory(addr Ptr) (*MMapEntry, Ptr) {
+	index := sort.Search(len(as.mMapEntries), func(i int) bool {
+		return as.mMapEntries[i].Offset > addr
 	}) - 1
-	if index < 0 || int(addr)-int(as.MMapEntries[index].Offset) >= int(as.MMapEntries[index].Length) {
+	if index < 0 || int(addr)-int(as.mMapEntries[index].Offset) >= int(as.mMapEntries[index].Length) {
 		panic(fmt.Errorf("trying to access unmapped address 0x%x", addr))
 	}
-	return &as.MMapEntries[index]
+	mappedAddr := addr
+	if as.mMapEntries[index].Translator != nil {
+		mappedAddr = as.mMapEntries[index].Translator(addr)
+	}
+	return &as.mMapEntries[index], mappedAddr
 }
 
-func (as *AddressSpace) Peek(addr Ptr) byte {
-	entry := as.findMMapEntry(addr)
+func (as *AddressSpaceImpl) Peek(addr Ptr) byte {
+	entry, mappedAddr := as.lookupMappedMemory(addr)
 	if entry.Mode&MMAP_MODE_READ == 0 {
 		panic(fmt.Errorf("permmission denied when trying to read 0x%x", addr))
-	}
-	mappedAddr := addr
-	if entry.Tanslator != nil {
-		mappedAddr = entry.Tanslator(addr)
 	}
 	return entry.Memory.Peek(mappedAddr)
 }
 
-func (as *AddressSpace) Poke(addr Ptr, val byte) {
-	entry := as.findMMapEntry(addr)
+func (as *AddressSpaceImpl) Poke(addr Ptr, val byte) {
+	entry, mappedAddr := as.lookupMappedMemory(addr)
 	if entry.Mode&MMAP_MODE_WRITE == 0 {
 		panic(fmt.Errorf("permmission denied when trying to write %x", addr))
-	}
-	mappedAddr := addr
-	if entry.Tanslator != nil {
-		mappedAddr = entry.Tanslator(addr)
 	}
 	entry.Memory.Poke(mappedAddr, val)
 }

@@ -30,13 +30,11 @@ func main() {
 	cpu.Test()
 }
 
-func NewCpuAddressSpace(mainRam memory.Memory, rom memory.Memory) *memory.AddressSpace {
-	as := &memory.AddressSpace{}
-	as.MMapEntries = []memory.MMapEntry{
-		// 0x0000 - ox1fff RAM
-		{0, 0x2000, memory.MMAP_MODE_READ | memory.MMAP_MODE_WRITE, mainRam, nil},
-		// 0x8000 - 0xffff ROM
-		{0x8000, 0x8000, memory.MMAP_MODE_READ, rom, nil},
-	}
+func NewCpuAddressSpace(mainRam memory.Memory, rom memory.Memory) memory.AddressSpace {
+	as := &memory.AddressSpaceImpl{}
+	// 0x0000 - ox1fff RAM
+	as.MapMemory(0, 0x2000, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE, mainRam, nil)
+	// 0x8000 - 0xffff PRG-ROM
+	as.MapMemory(0x8000, 0x8000, memory.MMAP_MODE_READ, rom, nil)
 	return as
 }
