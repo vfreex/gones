@@ -3,6 +3,7 @@ package main
 import (
 	cpu2 "github.com/vfreex/gones/pkg/emulator/cpu"
 	"github.com/vfreex/gones/pkg/emulator/memory"
+	"github.com/vfreex/gones/pkg/emulator/ram"
 	"github.com/vfreex/gones/pkg/emulator/rom/ines"
 	"log"
 	"os"
@@ -23,7 +24,7 @@ func main() {
 	}
 	log.Printf("iNES ROM file loaded: %v\n", rom)
 
-	mainRam := memory.NewMainRAM()
+	mainRam := ram.NewMainRAM()
 
 	cpuMemoryAddress := NewCpuAddressSpace(mainRam, rom)
 	cpu := cpu2.NewCpu(cpuMemoryAddress)
