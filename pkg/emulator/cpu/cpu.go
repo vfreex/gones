@@ -2,7 +2,6 @@ package cpu
 
 import (
 	"encoding/hex"
-	"fmt"
 	"github.com/vfreex/gones/pkg/emulator/memory"
 	"log"
 )
@@ -78,9 +77,6 @@ func (cpu *Cpu) ExecOneInstruction() (cycles int) {
 	handler := opcodeHandlers[opcode]
 	if handler == nil {
 		log.Fatalf("opcode %02x (%s) is not supported", opcode, info.Nemonics)
-	}
-	if handler.AddressingMode != info.AddressingMode {
-		panic(fmt.Errorf("BUG: incorrect addressing mode: got %s, expected %s", handler.AddressingMode, info.AddressingMode))
 	}
 
 	operandAddr, cycles1 := cpu.AddressOperand(handler.AddressingMode)

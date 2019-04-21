@@ -3,6 +3,7 @@ package cpu
 import (
 	"github.com/vfreex/gones/pkg/emulator/memory"
 	"github.com/vfreex/gones/pkg/emulator/ram"
+	"log"
 	"testing"
 )
 
@@ -19,6 +20,20 @@ func setupCPU(program memory.Memory) *Cpu {
 		return 0x8000 + addr
 	})
 	return NewCpu(as)
+}
+
+func TestOpcodeHandlers(t *testing.T) {
+	for opcode, info := range InstructionInfos {
+		handler := opcodeHandlers[opcode]
+		if handler == nil {
+			log.Printf("Opcode %02x (%s %s) is not implmeneted yet.", opcode, info.Nemonics, info.AddressingMode)
+			continue
+		}
+		if handler.AddressingMode != info.AddressingMode {
+			t.Fatalf("BUG: Addressing mode in opcodeHandlers doesn't match the info in InstructionInfos: got %s, expected: %s",
+				handler.AddressingMode, info.AddressingMode)
+		}
+	}
 }
 
 func TestADC_PositiveAddNegative(t *testing.T) {
@@ -49,7 +64,6 @@ func TestADC_PositiveAddNegative(t *testing.T) {
 	}
 }
 
-
 func TestADC_PositiveAddPositive(t *testing.T) {
 	// test 7f + 7f + 1 == ff
 	program := ram.NewRAM(0x8000)
@@ -77,7 +91,6 @@ func TestADC_PositiveAddPositive(t *testing.T) {
 		t.Fatalf("got NF=1, expected NF=0")
 	}
 }
-
 
 func TestADC_NegativeAddNegative(t *testing.T) {
 	// test ff + ff + 0 == fe
