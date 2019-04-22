@@ -172,6 +172,8 @@ var opcodeHandlers = [256]*InstructionHandler{
 	0x76: {(*Cpu).ExecROR, ZPX},
 	0x6e: {(*Cpu).ExecROR, ABS},
 	0x7e: {(*Cpu).ExecROR, ABX},
+
+	0x00: {(*Cpu).ExecBRK, IMP},
 }
 
 type InstructionExecutor func(cpu *Cpu, operandAddr memory.Ptr) (cyclesTook int)
@@ -421,11 +423,9 @@ func (cpu *Cpu) ExecBEQ(operandAddr memory.Ptr) int {
 	return cycles
 }
 
-
 func (cpu *Cpu) ExecPLA(operandAddr memory.Ptr) int {
 	log.Printf("Exec PLA")
-	cpu.SP++
-	cpu.A = cpu.Memory.Peek(0x100 | memory.Ptr(cpu.SP))
+	cpu.A = cpu.Pop()
 	cpu.P.Set(PFLAG_Z, cpu.A == 0)
 	cpu.P.Set(PFLAG_N, cpu.A >= 128)
 	return 3
@@ -433,22 +433,19 @@ func (cpu *Cpu) ExecPLA(operandAddr memory.Ptr) int {
 
 func (cpu *Cpu) ExecPHA(operandAddr memory.Ptr) int {
 	log.Printf("Exec PHA")
-	cpu.Memory.Poke(0x100|memory.Ptr(cpu.SP), cpu.A)
-	cpu.SP--
+	cpu.Push(cpu.A)
 	return 2
 }
 
 func (cpu *Cpu) ExecPLP(operandAddr memory.Ptr) int {
 	log.Printf("Exec PLP")
-	cpu.SP++
-	cpu.P = ProcessorStatus(cpu.Memory.Peek(0x100 | memory.Ptr(cpu.SP)))
+	cpu.P = ProcessorStatus(cpu.Pop())
 	return 3
 }
 
 func (cpu *Cpu) ExecPHP(operandAddr memory.Ptr) int {
 	log.Printf("Exec PHP")
-	cpu.Memory.Poke(0x100|memory.Ptr(cpu.SP), byte(cpu.P))
-	cpu.SP--
+	cpu.Push(byte(cpu.P))
 	return 2
 }
 
@@ -654,4 +651,14 @@ func (cpu *Cpu) ExecROR(operandAddr memory.Ptr) int {
 	cpu.P.Set(PFLAG_Z, r == 0)
 	cpu.P.Set(PFLAG_N, r > 0x7f)
 	return 3
+}
+
+func (cpu *Cpu) ExecBRK(operandAddr memory.Ptr) int {
+	log.Printf("Exec BRK")
+	cpu.P.Set(PFLAG_B, true)
+	cpu.Push(byte(cpu.PC >> 8))
+	cpu.Push(byte(cpu.PC & 0xff))
+	cpu.Push(byte(cpu.P))
+	cpu.P.Set(PFLAG_I, true)
+	return 6
 }

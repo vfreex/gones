@@ -59,6 +59,16 @@ func (cpu *Cpu) Test() {
 
 }
 
+func (cpu *Cpu) Push(b byte) {
+	cpu.Memory.Poke(0x100|memory.Ptr(cpu.SP), b)
+	cpu.SP--
+}
+
+func (cpu *Cpu) Pop() byte {
+	cpu.SP++
+	return cpu.Memory.Peek(0x100 | memory.Ptr(cpu.SP))
+}
+
 func (cpu *Cpu) ExecOneInstruction() (cycles int) {
 	opcode := cpu.Memory.Peek(cpu.PC)
 	cpu.PC++
