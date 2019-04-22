@@ -1,26 +1,10 @@
 package cpu
 
 import (
-	"github.com/vfreex/gones/pkg/emulator/memory"
 	"github.com/vfreex/gones/pkg/emulator/ram"
 	"log"
 	"testing"
 )
-
-func setupCPU(program memory.Memory) *Cpu {
-	as := &memory.AddressSpaceImpl{}
-	// 0x0000 - ox1fff RAM
-	as.MapMemory(0, 0x2000, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE, ram.NewMainRAM(), nil)
-	// test RAM
-	as.MapMemory(0x2000, 0x6000, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE, ram.NewRAM(0x6000), func(addr memory.Ptr) memory.Ptr {
-		return 0x2000 + addr
-	})
-	// test ROM
-	as.MapMemory(0x8000, 0x8000, memory.MMAP_MODE_READ, program, func(addr memory.Ptr) memory.Ptr {
-		return 0x8000 + addr
-	})
-	return NewCpu(as)
-}
 
 func TestOpcodeHandlers(t *testing.T) {
 	for opcode, info := range InstructionInfos {
@@ -36,86 +20,105 @@ func TestOpcodeHandlers(t *testing.T) {
 	}
 }
 
-func TestADC_PositiveAddNegative(t *testing.T) {
-	// test 7f + ff + 0 == 7e
-	program := ram.NewRAM(0x8000)
-	// adc #ff
-	program.Poke(0x0000, 0x69)
-	program.Poke(0x0001, 0xff)
-	cpu := setupCPU(program)
-	cpu.PC = 0x8000
-	cpu.A = 0x7f
-	cpu.P.Set(PFLAG_C, false)
+func execAdc(a byte, x byte, c bool) (ans byte, status ProcessorStatus) {
+	ram := ram.NewRAM(2)
+	cpu := NewCpu(ram)
+	ram.Poke(0, 0x69)
+	ram.Poke(1, x)
+	cpu.PC = 0
+	cpu.A = a
+	cpu.P.Set(PFLAG_C, c)
 	cpu.ExecOneInstruction()
-	if cpu.A != 0x7e {
-		t.Fatalf("got %x, expected %x", cpu.A, 0x7e)
-	}
-	if cpu.P&PFLAG_C == 0 {
-		t.Fatalf("got CF=0, expected CF=1")
-	}
-	if cpu.P&PFLAG_V != 0 {
-		t.Fatalf("got OF=1, expected OF=0")
-	}
-	if cpu.P&PFLAG_Z != 0 {
-		t.Fatalf("got ZF=1, expected ZF=0")
-	}
-	if cpu.P&PFLAG_N != 0 {
-		t.Fatalf("got NF=1, expected NF=0")
+	return cpu.A, cpu.P
+}
+
+func TestADC_Signed(t *testing.T) {
+	for a := -128; a < 128; a++ {
+		for x := -128; x < 128; x++ {
+			for c := 0; c < 2; c++ {
+				r, p := execAdc(byte(a), byte(x), c != 0)
+				actual := int8(r)
+				actualOF := p&PFLAG_V != 0
+				expected := a + x + c
+				expectedOF := expected >= 128 || expected < -128
+				expected2 := int8(expected)
+				if expectedOF == actualOF && expected2 == actual {
+					continue
+				}
+				t.Fatalf("error computing %02x+%02x+%x, got %02x %v, excpeted %02x %v", a, x, c,
+					actual, actualOF, expected2, expectedOF)
+			}
+		}
 	}
 }
 
-func TestADC_PositiveAddPositive(t *testing.T) {
-	// test 7f + 7f + 1 == ff
-	program := ram.NewRAM(0x8000)
-	// adc #ff
-	program.Poke(0x0000, 0x69)
-	program.Poke(0x0001, 0x7f)
-	cpu := setupCPU(program)
-	cpu.PC = 0x8000
-	cpu.A = 0x7f
-	cpu.P.Set(PFLAG_C, true)
-	cpu.ExecOneInstruction()
-	if cpu.A != 0xff {
-		t.Fatalf("got %x, expected %x", cpu.A, 0xff)
-	}
-	if cpu.P&PFLAG_C != 0 {
-		t.Fatalf("got CF=0, expected CF=1")
-	}
-	if cpu.P&PFLAG_V == 0 {
-		t.Fatalf("got OF=1, expected OF=0")
-	}
-	if cpu.P&PFLAG_Z != 0 {
-		t.Fatalf("got ZF=1, expected ZF=0")
-	}
-	if cpu.P&PFLAG_N == 0 {
-		t.Fatalf("got NF=1, expected NF=0")
+func TestADC_Unsigned(t *testing.T) {
+	for a := 0; a < 256; a++ {
+		for x := 0; x < 256; x++ {
+			for c := 0; c < 2; c++ {
+				r, p := execAdc(byte(a), byte(x), c != 0)
+				actual := uint8(r)
+				actualCF := p&PFLAG_C != 0
+				expected := a + x + c
+				expectedCF := expected >= 256
+				expected2 := uint8(expected)
+				if expectedCF == actualCF && expected2 == actual {
+					continue
+				}
+				t.Fatalf("error computing %02x+%02x+%x, got %02x %v, excpeted %02x %v", a, x, c,
+					actual, actualCF, expected2, expectedCF)
+			}
+		}
 	}
 }
 
-func TestADC_NegativeAddNegative(t *testing.T) {
-	// test ff + ff + 0 == fe
-	program := ram.NewRAM(0x8000)
-	// adc #ff
-	program.Poke(0x0000, 0x69)
-	program.Poke(0x0001, 0xff)
-	cpu := setupCPU(program)
-	cpu.PC = 0x8000
-	cpu.A = 0xff
-	cpu.P.Set(PFLAG_C, false)
+func execSbc(a byte, x byte, c bool) (ans byte, status ProcessorStatus) {
+	ram := ram.NewRAM(2)
+	cpu := NewCpu(ram)
+	ram.Poke(0, 0xe9)
+	ram.Poke(1, x)
+	cpu.PC = 0
+	cpu.A = a
+	cpu.P.Set(PFLAG_C, c)
 	cpu.ExecOneInstruction()
-	if cpu.A != 0xfe {
-		t.Fatalf("got %x, expected %x", cpu.A, 0xfe)
+	return cpu.A, cpu.P
+}
+
+func TestSBC_Signed(t *testing.T) {
+	for a := -128; a < 128; a++ {
+		for x := -128; x < 128; x++ {
+			for c := 0; c < 2; c++ {
+				r, p := execSbc(byte(a), byte(x), c != 0)
+				actual := int8(r)
+				actualOF := p&PFLAG_V != 0
+				expected := a - x - (1 - c)
+				expected2 := int8(expected)
+				expectedOF := expected >= 128 || expected < -128
+				if expectedOF == actualOF && expected2 == actual {
+					continue
+				}
+				t.Fatalf("error computing %02x+%02x+%x, got %02x %v, excpeted %02x %v", a, x, c,
+					actual, actualOF, expected2, expectedOF)
+			}
+		}
 	}
-	if cpu.P&PFLAG_C == 0 {
-		t.Fatalf("got CF=0, expected CF=1")
-	}
-	if cpu.P&PFLAG_V != 0 {
-		t.Fatalf("got OF=1, expected OF=0")
-	}
-	if cpu.P&PFLAG_Z != 0 {
-		t.Fatalf("got ZF=1, expected ZF=0")
-	}
-	if cpu.P&PFLAG_N == 0 {
-		t.Fatalf("got NF=0, expected NF=1")
+}
+
+func TestSBC_Unsigned(t *testing.T) {
+	for a := 0; a < 256; a++ {
+		for x := 0; x < 256; x++ {
+			for c := 0; c < 2; c++ {
+				r, p := execSbc(byte(a), byte(x), c != 0)
+				actual := r
+				actualCF := p&PFLAG_C != 0
+				expected := uint8(a - x - (1 - c))
+				expectedCF := a-x-(1-c) >= 0
+				if expectedCF == actualCF && expected == actual {
+					continue
+				}
+				t.Fatalf("error computing %02x-%02x-1+%x, got %02x %v, excpeted %02x %v", a, x, c,
+					actual, actualCF, expected, expectedCF)
+			}
+		}
 	}
 }

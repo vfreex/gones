@@ -297,7 +297,7 @@ func (cpu *Cpu) ExecADC(operandAddr memory.Ptr) int {
 	}
 	r2 := uint8(r)
 	cpu.P.Set(PFLAG_C, r > 0xFF)
-	// https://en.wikipedia.org/wiki/Overflow_flag
+	// http://www.6502.org/tutorials/vflag.html#2.4
 	cpu.P.Set(PFLAG_V, (cpu.A^operand)&0x80 == 0 && (cpu.A^r2)&0x80 != 0)
 	cpu.P.Set(PFLAG_Z, r2 == 0)
 	cpu.P.Set(PFLAG_N, r2 > 0x7f)
@@ -315,7 +315,7 @@ func (cpu *Cpu) ExecSBC(operandAddr memory.Ptr) int {
 	}
 	r2 := uint8(r)
 	cpu.P.Set(PFLAG_C, r > 0xFF)
-	// https://en.wikipedia.org/wiki/Overflow_flag
+	// http://www.6502.org/tutorials/vflag.html#2.4
 	cpu.P.Set(PFLAG_V, (cpu.A^operand2)&0x80 == 0 && (cpu.A^r2)&0x80 != 0)
 	cpu.P.Set(PFLAG_Z, r2 == 0)
 	cpu.P.Set(PFLAG_N, r2 > 0x7f)
