@@ -70,11 +70,47 @@ var opcodeHandlers = [256]*InstructionHandler{
 	0x69: {(*Cpu).ExecADC, IMM},
 	0x65: {(*Cpu).ExecADC, ZP},
 	0x75: {(*Cpu).ExecADC, ZPX},
+	0x61: {(*Cpu).ExecADC, IZX},
+	0x71: {(*Cpu).ExecADC, IZY},
 	0x6d: {(*Cpu).ExecADC, ABS},
 	0x7d: {(*Cpu).ExecADC, ABX},
 	0x79: {(*Cpu).ExecADC, ABY},
-	0x61: {(*Cpu).ExecADC, IZX},
-	0x71: {(*Cpu).ExecADC, IZY},
+
+	0xe9: {(*Cpu).ExecSBC, IMM},
+	0xe5: {(*Cpu).ExecSBC, ZP},
+	0xf5: {(*Cpu).ExecSBC, ZPX},
+	0xe1: {(*Cpu).ExecSBC, IZX},
+	0xf1: {(*Cpu).ExecSBC, IZY},
+	0xed: {(*Cpu).ExecSBC, ABS},
+	0xfd: {(*Cpu).ExecSBC, ABX},
+	0xf9: {(*Cpu).ExecSBC, ABY},
+
+	0x09: {(*Cpu).ExecORA, IMM},
+	0x05: {(*Cpu).ExecORA, ZP},
+	0x15: {(*Cpu).ExecORA, ZPX},
+	0x01: {(*Cpu).ExecORA, IZX},
+	0x11: {(*Cpu).ExecORA, IZY},
+	0x0d: {(*Cpu).ExecORA, ABS},
+	0x1d: {(*Cpu).ExecORA, ABX},
+	0x19: {(*Cpu).ExecORA, ABY},
+
+	0x29: {(*Cpu).ExecAND, IMM},
+	0x25: {(*Cpu).ExecAND, ZP},
+	0x35: {(*Cpu).ExecAND, ZPX},
+	0x21: {(*Cpu).ExecAND, IZX},
+	0x31: {(*Cpu).ExecAND, IZY},
+	0x2d: {(*Cpu).ExecAND, ABS},
+	0x3d: {(*Cpu).ExecAND, ABX},
+	0x39: {(*Cpu).ExecAND, ABY},
+
+	0x49: {(*Cpu).ExecEOR, IMM},
+	0x45: {(*Cpu).ExecEOR, ZP},
+	0x55: {(*Cpu).ExecEOR, ZPX},
+	0x41: {(*Cpu).ExecEOR, IZX},
+	0x51: {(*Cpu).ExecEOR, IZY},
+	0x4d: {(*Cpu).ExecEOR, ABS},
+	0x5d: {(*Cpu).ExecEOR, ABX},
+	0x59: {(*Cpu).ExecEOR, ABY},
 }
 
 type InstructionExecutor func(cpu *Cpu, operandAddr memory.Ptr) (cyclesTook int)
@@ -266,5 +302,50 @@ func (cpu *Cpu) ExecADC(operandAddr memory.Ptr) int {
 	cpu.P.Set(PFLAG_Z, r2 == 0)
 	cpu.P.Set(PFLAG_N, r2 > 0x7f)
 	cpu.A = r2
+	return 1
+}
+
+func (cpu *Cpu) ExecSBC(operandAddr memory.Ptr) int {
+	log.Printf("Exec SBC")
+	operand := cpu.Memory.Peek(operandAddr)
+	operand2 := ^operand
+	r := uint16(cpu.A) + uint16(operand2)
+	if cpu.P&PFLAG_C != 0 {
+		r++
+	}
+	r2 := uint8(r)
+	cpu.P.Set(PFLAG_C, r > 0xFF)
+	// https://en.wikipedia.org/wiki/Overflow_flag
+	cpu.P.Set(PFLAG_V, (cpu.A^operand2)&0x80 == 0 && (cpu.A^r2)&0x80 != 0)
+	cpu.P.Set(PFLAG_Z, r2 == 0)
+	cpu.P.Set(PFLAG_N, r2 > 0x7f)
+	cpu.A = r2
+	return 1
+}
+
+func (cpu *Cpu) ExecORA(operandAddr memory.Ptr) int {
+	log.Printf("Exec ORA")
+	operand := cpu.Memory.Peek(operandAddr)
+	cpu.A |= operand
+	cpu.P.Set(PFLAG_Z, cpu.A == 0)
+	cpu.P.Set(PFLAG_N, cpu.A > 0x7f)
+	return 1
+}
+
+func (cpu *Cpu) ExecAND(operandAddr memory.Ptr) int {
+	log.Printf("Exec AND")
+	operand := cpu.Memory.Peek(operandAddr)
+	cpu.A &= operand
+	cpu.P.Set(PFLAG_Z, cpu.A == 0)
+	cpu.P.Set(PFLAG_N, cpu.A > 0x7f)
+	return 1
+}
+
+func (cpu *Cpu) ExecEOR(operandAddr memory.Ptr) int {
+	log.Printf("Exec EOR")
+	operand := cpu.Memory.Peek(operandAddr)
+	cpu.A ^= operand
+	cpu.P.Set(PFLAG_Z, cpu.A == 0)
+	cpu.P.Set(PFLAG_N, cpu.A > 0x7f)
 	return 1
 }
