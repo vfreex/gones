@@ -30,8 +30,8 @@ func TestOpcodeHandlers(t *testing.T) {
 			continue
 		}
 		if handler.AddressingMode != info.AddressingMode {
-			t.Fatalf("BUG: Addressing mode in opcodeHandlers doesn't match the info in InstructionInfos: got %s, expected: %s",
-				handler.AddressingMode, info.AddressingMode)
+			t.Fatalf("BUG: Addressing mode for %02x opcodeHandlers doesn't match the info in InstructionInfos: got %s, expected: %s",
+				opcode, handler.AddressingMode, info.AddressingMode)
 		}
 	}
 }

@@ -14,10 +14,11 @@ var opcodeHandlers = [256]*InstructionHandler{
 	0x78: {(*Cpu).ExecSEI, IMP},
 	0xd8: {(*Cpu).ExecCLD, IMP},
 
-	0x86: {(*Cpu).ExecSTX, ZP},
-	0x96: {(*Cpu).ExecSTX, ZPY},
-	0x8e: {(*Cpu).ExecSTX, ABS},
-
+	0xaa: {(*Cpu).ExecTAX, IMP},
+	0x8a: {(*Cpu).ExecTXA, IMP},
+	0xa8: {(*Cpu).ExecTAY, IMP},
+	0x98: {(*Cpu).ExecTYA, IMP},
+	0xba: {(*Cpu).ExecTSX, IMP},
 	0x9a: {(*Cpu).ExecTXS, IMP},
 
 
@@ -26,6 +27,20 @@ var opcodeHandlers = [256]*InstructionHandler{
 	0xb6: {(*Cpu).ExecLDX, ZPY},
 	0xae: {(*Cpu).ExecLDX, ABS},
 	0xbe: {(*Cpu).ExecLDX, ABY},
+
+	0x86: {(*Cpu).ExecSTX, ZP},
+	0x96: {(*Cpu).ExecSTX, ZPY},
+	0x8e: {(*Cpu).ExecSTX, ABS},
+
+	0xa0: {(*Cpu).ExecLDY, IMM},
+	0xa4: {(*Cpu).ExecLDY, ZP},
+	0xb4: {(*Cpu).ExecLDY, ZPX},
+	0xac: {(*Cpu).ExecLDY, ABS},
+	0xbc: {(*Cpu).ExecLDY, ABX},
+
+	0x84: {(*Cpu).ExecSTY, ZP},
+	0x94: {(*Cpu).ExecSTY, ZPX},
+	0x8c: {(*Cpu).ExecSTY, ABS},
 
 	0xc8: {(*Cpu).ExecINY, IMP},
 	0xe8: {(*Cpu).ExecINX, IMP},
@@ -38,6 +53,14 @@ var opcodeHandlers = [256]*InstructionHandler{
 	0xb9: {(*Cpu).ExecLDA, ABY},
 	0xa1: {(*Cpu).ExecLDA, IZX},
 	0xb1: {(*Cpu).ExecLDA, IZY},
+
+	0x85: {(*Cpu).ExecSTA, ZP},
+	0x95: {(*Cpu).ExecSTA, ZPX},
+	0x81: {(*Cpu).ExecSTA, IZX},
+	0x91: {(*Cpu).ExecSTA, IZY},
+	0x8d: {(*Cpu).ExecSTA, ABS},
+	0x9d: {(*Cpu).ExecSTA, ABX},
+	0x99: {(*Cpu).ExecSTA, ABY},
 
 	0x69: {(*Cpu).ExecADC, IMM},
 	0x65: {(*Cpu).ExecADC, ZP},
@@ -76,6 +99,12 @@ func (cpu *Cpu) ExecLDA(operandAddr memory.Ptr) int {
 	return 1
 }
 
+func (cpu *Cpu) ExecSTA(operandAddr memory.Ptr) int {
+	log.Printf("Exec STA")
+	cpu.Memory.Poke(operandAddr, cpu.A)
+	return 1
+}
+
 func (cpu *Cpu) ExecLDX(operandAddr memory.Ptr) int {
 	log.Printf("Exec LDX")
 	cpu.X = cpu.Memory.Peek(operandAddr)
@@ -92,9 +121,61 @@ func (cpu *Cpu) ExecSTX(operandAddr memory.Ptr) int {
 	return 1
 }
 
+func (cpu *Cpu) ExecLDY(operandAddr memory.Ptr) int {
+	log.Printf("Exec LDY")
+	cpu.Y = cpu.Memory.Peek(operandAddr)
+	cpu.P.Set(PFLAG_Z, cpu.Y == 0)
+	cpu.P.Set(PFLAG_N, cpu.Y >= 128)
+	return 1
+}
+
+func (cpu *Cpu) ExecSTY(operandAddr memory.Ptr) int {
+	log.Printf("cpu memory %04x: %02x", operandAddr, cpu.Memory.Peek(operandAddr))
+	log.Printf("Exec STY")
+	cpu.Memory.Poke(operandAddr, cpu.Y)
+	log.Printf("cpu memory %04x: %02x", operandAddr, cpu.Memory.Peek(operandAddr))
+	return 1
+}
+
+func (cpu *Cpu) ExecTAX(operandAddr memory.Ptr) int {
+	log.Printf("Exec TAX")
+	cpu.X = cpu.A
+	cpu.P.Set(PFLAG_Z, cpu.X == 0)
+	cpu.P.Set(PFLAG_N, cpu.X >= 128)
+	return 1
+}
+func (cpu *Cpu) ExecTXA(operandAddr memory.Ptr) int {
+	log.Printf("Exec TXA")
+	cpu.A = cpu.X
+	cpu.P.Set(PFLAG_Z, cpu.A == 0)
+	cpu.P.Set(PFLAG_N, cpu.A >= 128)
+	return 1
+}
+func (cpu *Cpu) ExecTAY(operandAddr memory.Ptr) int {
+	log.Printf("Exec TAY")
+	cpu.Y = cpu.A
+	cpu.P.Set(PFLAG_Z, cpu.Y == 0)
+	cpu.P.Set(PFLAG_N, cpu.Y >= 128)
+	return 1
+}
+func (cpu *Cpu) ExecTYA(operandAddr memory.Ptr) int {
+	log.Printf("Exec TYA")
+	cpu.A = cpu.Y
+	cpu.P.Set(PFLAG_Z, cpu.A == 0)
+	cpu.P.Set(PFLAG_N, cpu.A >= 128)
+	return 1
+}
+func (cpu *Cpu) ExecTSX(operandAddr memory.Ptr) int {
+	log.Printf("Exec TSX")
+	cpu.X = cpu.SP
+	cpu.P.Set(PFLAG_Z, cpu.X == 0)
+	cpu.P.Set(PFLAG_N, cpu.X >= 128)
+	return 1
+}
 func (cpu *Cpu) ExecTXS(operandAddr memory.Ptr) int {
 	log.Printf("Exec TXS")
 	cpu.SP = cpu.X
+	// don't set P flags
 	return 1
 }
 
