@@ -62,6 +62,11 @@ var opcodeHandlers = [256]*InstructionHandler{
 	0x9d: {(*Cpu).ExecSTA, ABX},
 	0x99: {(*Cpu).ExecSTA, ABY},
 
+	0x68: {(*Cpu).ExecPLA, IMP},
+	0x48: {(*Cpu).ExecPHA, IMP},
+	0x28: {(*Cpu).ExecPLP, IMP},
+	0x08: {(*Cpu).ExecPHP, IMP},
+
 	0x69: {(*Cpu).ExecADC, IMM},
 	0x65: {(*Cpu).ExecADC, ZP},
 	0x75: {(*Cpu).ExecADC, ZPX},
@@ -215,6 +220,36 @@ func (cpu *Cpu) ExecBPL(operandAddr memory.Ptr) int {
 		log.Printf("jump to PC=%2x", operandAddr)
 	}
 	return 1
+}
+
+func (cpu *Cpu) ExecPLA(operandAddr memory.Ptr) int {
+	log.Printf("Exec PLA")
+	cpu.SP++
+	cpu.A = cpu.Memory.Peek(0x100 | memory.Ptr(cpu.SP))
+	cpu.P.Set(PFLAG_Z, cpu.A == 0)
+	cpu.P.Set(PFLAG_N, cpu.A >= 128)
+	return 3
+}
+
+func (cpu *Cpu) ExecPHA(operandAddr memory.Ptr) int {
+	log.Printf("Exec PHA")
+	cpu.Memory.Poke(0x100|memory.Ptr(cpu.SP), cpu.A)
+	cpu.SP--
+	return 2
+}
+
+func (cpu *Cpu) ExecPLP(operandAddr memory.Ptr) int {
+	log.Printf("Exec PLP")
+	cpu.SP++
+	cpu.P = ProcessorStatus(cpu.Memory.Peek(0x100 | memory.Ptr(cpu.SP)))
+	return 3
+}
+
+func (cpu *Cpu) ExecPHP(operandAddr memory.Ptr) int {
+	log.Printf("Exec PHP")
+	cpu.Memory.Poke(0x100|memory.Ptr(cpu.SP), byte(cpu.P))
+	cpu.SP--
+	return 2
 }
 
 func (cpu *Cpu) ExecADC(operandAddr memory.Ptr) int {
