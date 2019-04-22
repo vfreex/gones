@@ -7,6 +7,13 @@ import (
 
 var opcodeHandlers = [256]*InstructionHandler{
 	0x10: {(*Cpu).ExecBPL, REL},
+	0x30: {(*Cpu).ExecBMI, REL},
+	0x50: {(*Cpu).ExecBVC, REL},
+	0x70: {(*Cpu).ExecBVS, REL},
+	0x90: {(*Cpu).ExecBCC, REL},
+	0xB0: {(*Cpu).ExecBCS, REL},
+	0xD0: {(*Cpu).ExecBNE, REL},
+	0xF0: {(*Cpu).ExecBEQ, REL},
 
 	0x24: {(*Cpu).ExecBIT, ZP},
 	0x2c: {(*Cpu).ExecBIT, ABS},
@@ -320,13 +327,100 @@ func (cpu *Cpu) ExecBIT(operandAddr memory.Ptr) int {
 
 func (cpu *Cpu) ExecBPL(operandAddr memory.Ptr) int {
 	log.Printf("Exec BPL")
+	cycles := 1
 	if cpu.P&PFLAG_N == 0 {
+		cycles++
 		log.Printf("before jump: PC=%2x", cpu.PC)
 		cpu.PC = operandAddr
 		log.Printf("jump to PC=%2x", operandAddr)
 	}
-	return 1
+	return cycles
 }
+
+func (cpu *Cpu) ExecBMI(operandAddr memory.Ptr) int {
+	log.Printf("Exec BMI")
+	cycles := 1
+	if cpu.P&PFLAG_N != 0 {
+		cycles++
+		log.Printf("before jump: PC=%2x", cpu.PC)
+		cpu.PC = operandAddr
+		log.Printf("jump to PC=%2x", operandAddr)
+	}
+	return cycles
+}
+
+func (cpu *Cpu) ExecBVC(operandAddr memory.Ptr) int {
+	log.Printf("Exec BVC")
+	cycles := 1
+	if cpu.P&PFLAG_V == 0 {
+		cycles++
+		log.Printf("before jump: PC=%2x", cpu.PC)
+		cpu.PC = operandAddr
+		log.Printf("jump to PC=%2x", operandAddr)
+	}
+	return cycles
+}
+
+func (cpu *Cpu) ExecBVS(operandAddr memory.Ptr) int {
+	log.Printf("Exec BVS")
+	cycles := 1
+	if cpu.P&PFLAG_V != 0 {
+		cycles++
+		log.Printf("before jump: PC=%2x", cpu.PC)
+		cpu.PC = operandAddr
+		log.Printf("jump to PC=%2x", operandAddr)
+	}
+	return cycles
+}
+
+func (cpu *Cpu) ExecBCC(operandAddr memory.Ptr) int {
+	log.Printf("Exec BCC")
+	cycles := 1
+	if cpu.P&PFLAG_C == 0 {
+		cycles++
+		log.Printf("before jump: PC=%2x", cpu.PC)
+		cpu.PC = operandAddr
+		log.Printf("jump to PC=%2x", operandAddr)
+	}
+	return cycles
+}
+
+func (cpu *Cpu) ExecBCS(operandAddr memory.Ptr) int {
+	log.Printf("Exec BCS")
+	cycles := 1
+	if cpu.P&PFLAG_C != 0 {
+		cycles++
+		log.Printf("before jump: PC=%2x", cpu.PC)
+		cpu.PC = operandAddr
+		log.Printf("jump to PC=%2x", operandAddr)
+	}
+	return cycles
+}
+
+func (cpu *Cpu) ExecBNE(operandAddr memory.Ptr) int {
+	log.Printf("Exec BNE")
+	cycles := 1
+	if cpu.P&PFLAG_Z == 0 {
+		cycles++
+		log.Printf("before jump: PC=%2x", cpu.PC)
+		cpu.PC = operandAddr
+		log.Printf("jump to PC=%2x", operandAddr)
+	}
+	return cycles
+}
+
+func (cpu *Cpu) ExecBEQ(operandAddr memory.Ptr) int {
+	log.Printf("Exec BEQ")
+	cycles := 1
+	if cpu.P&PFLAG_Z != 0 {
+		cycles++
+		log.Printf("before jump: PC=%2x", cpu.PC)
+		cpu.PC = operandAddr
+		log.Printf("jump to PC=%2x", operandAddr)
+	}
+	return cycles
+}
+
 
 func (cpu *Cpu) ExecPLA(operandAddr memory.Ptr) int {
 	log.Printf("Exec PLA")
