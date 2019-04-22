@@ -42,9 +42,6 @@ var opcodeHandlers = [256]*InstructionHandler{
 	0x94: {(*Cpu).ExecSTY, ZPX},
 	0x8c: {(*Cpu).ExecSTY, ABS},
 
-	0xc8: {(*Cpu).ExecINY, IMP},
-	0xe8: {(*Cpu).ExecINX, IMP},
-
 	0xa9: {(*Cpu).ExecLDA, IMM},
 	0xa5: {(*Cpu).ExecLDA, ZP},
 	0xb5: {(*Cpu).ExecLDA, ZPX},
@@ -111,6 +108,63 @@ var opcodeHandlers = [256]*InstructionHandler{
 	0x4d: {(*Cpu).ExecEOR, ABS},
 	0x5d: {(*Cpu).ExecEOR, ABX},
 	0x59: {(*Cpu).ExecEOR, ABY},
+
+	0xc9: {(*Cpu).ExecCMP, IMM},
+	0xc5: {(*Cpu).ExecCMP, ZP},
+	0xd5: {(*Cpu).ExecCMP, ZPX},
+	0xc1: {(*Cpu).ExecCMP, IZX},
+	0xd1: {(*Cpu).ExecCMP, IZY},
+	0xcd: {(*Cpu).ExecCMP, ABS},
+	0xdd: {(*Cpu).ExecCMP, ABX},
+	0xd9: {(*Cpu).ExecCMP, ABY},
+
+	0xe0: {(*Cpu).ExecCPX, IMM},
+	0xe4: {(*Cpu).ExecCPX, ZP},
+	0xec: {(*Cpu).ExecCPX, ABS},
+
+	0xc0: {(*Cpu).ExecCPY, IMM},
+	0xc4: {(*Cpu).ExecCPY, ZP},
+	0xcc: {(*Cpu).ExecCPY, ABS},
+
+	0xe8: {(*Cpu).ExecINX, IMP},
+	0xc8: {(*Cpu).ExecINY, IMP},
+
+	0xca: {(*Cpu).ExecDEX, IMP},
+	0x88: {(*Cpu).ExecDEY, IMP},
+
+	0xe6: {(*Cpu).ExecINC, ZP},
+	0xf6: {(*Cpu).ExecINC, ZPX},
+	0xee: {(*Cpu).ExecINC, ABS},
+	0xfe: {(*Cpu).ExecINC, ABX},
+
+	0xc6: {(*Cpu).ExecDEC, ZP},
+	0xd6: {(*Cpu).ExecDEC, ZPX},
+	0xce: {(*Cpu).ExecDEC, ABS},
+	0xde: {(*Cpu).ExecDEC, ABX},
+
+	0x0a: {(*Cpu).ExecASLA, IMP},
+	0x06: {(*Cpu).ExecASL, ZP},
+	0x16: {(*Cpu).ExecASL, ZPX},
+	0x0e: {(*Cpu).ExecASL, ABS},
+	0x1e: {(*Cpu).ExecASL, ABX},
+
+	0x2a: {(*Cpu).ExecROLA, IMP},
+	0x26: {(*Cpu).ExecROL, ZP},
+	0x36: {(*Cpu).ExecROL, ZPX},
+	0x2e: {(*Cpu).ExecROL, ABS},
+	0x3e: {(*Cpu).ExecROL, ABX},
+
+	0x4a: {(*Cpu).ExecLSRA, IMP},
+	0x46: {(*Cpu).ExecLSR, ZP},
+	0x56: {(*Cpu).ExecLSR, ZPX},
+	0x4e: {(*Cpu).ExecLSR, ABS},
+	0x5e: {(*Cpu).ExecLSR, ABX},
+
+	0x6a: {(*Cpu).ExecRORA, IMP},
+	0x66: {(*Cpu).ExecROR, ZP},
+	0x76: {(*Cpu).ExecROR, ZPX},
+	0x6e: {(*Cpu).ExecROR, ABS},
+	0x7e: {(*Cpu).ExecROR, ABX},
 }
 
 type InstructionExecutor func(cpu *Cpu, operandAddr memory.Ptr) (cyclesTook int)
@@ -236,6 +290,22 @@ func (cpu *Cpu) ExecINY(operandAddr memory.Ptr) int {
 	return 1
 }
 
+func (cpu *Cpu) ExecDEX(operandAddr memory.Ptr) int {
+	log.Printf("Exec DEX")
+	cpu.X--
+	cpu.P.Set(PFLAG_Z, cpu.X == 0)
+	cpu.P.Set(PFLAG_N, cpu.X >= 128)
+	return 1
+}
+
+func (cpu *Cpu) ExecDEY(operandAddr memory.Ptr) int {
+	log.Printf("Exec DEY")
+	cpu.Y--
+	cpu.P.Set(PFLAG_Z, cpu.Y == 0)
+	cpu.P.Set(PFLAG_N, cpu.Y >= 128)
+	return 1
+}
+
 func (cpu *Cpu) ExecBIT(operandAddr memory.Ptr) int {
 	log.Printf("Exec BIT")
 
@@ -348,4 +418,146 @@ func (cpu *Cpu) ExecEOR(operandAddr memory.Ptr) int {
 	cpu.P.Set(PFLAG_Z, cpu.A == 0)
 	cpu.P.Set(PFLAG_N, cpu.A > 0x7f)
 	return 1
+}
+
+func (cpu *Cpu) ExecCMP(operandAddr memory.Ptr) int {
+	log.Printf("Exec CMP")
+	operand := cpu.Memory.Peek(operandAddr)
+	r := cpu.A - operand
+	cpu.P.Set(PFLAG_C, cpu.A >= operand)
+	cpu.P.Set(PFLAG_Z, r == 0)
+	cpu.P.Set(PFLAG_N, r > 0x7f)
+	return 1
+}
+
+func (cpu *Cpu) ExecCPX(operandAddr memory.Ptr) int {
+	log.Printf("Exec CPX")
+	operand := cpu.Memory.Peek(operandAddr)
+	r := cpu.X - operand
+	cpu.P.Set(PFLAG_C, cpu.X >= operand)
+	cpu.P.Set(PFLAG_Z, r == 0)
+	cpu.P.Set(PFLAG_N, r > 0x7f)
+	return 1
+}
+
+func (cpu *Cpu) ExecCPY(operandAddr memory.Ptr) int {
+	log.Printf("Exec CPY")
+	operand := cpu.Memory.Peek(operandAddr)
+	r := cpu.Y - operand
+	cpu.P.Set(PFLAG_C, cpu.Y >= operand)
+	cpu.P.Set(PFLAG_Z, r == 0)
+	cpu.P.Set(PFLAG_N, r > 0x7f)
+	return 1
+}
+
+func (cpu *Cpu) ExecINC(operandAddr memory.Ptr) int {
+	log.Printf("Exec INC")
+	r := cpu.Memory.Peek(operandAddr) + 1
+	cpu.Memory.Poke(operandAddr, r)
+	cpu.P.Set(PFLAG_Z, r == 0)
+	cpu.P.Set(PFLAG_N, r > 0x7f)
+	return 3
+}
+
+func (cpu *Cpu) ExecDEC(operandAddr memory.Ptr) int {
+	log.Printf("Exec DEC")
+	r := cpu.Memory.Peek(operandAddr) - 1
+	cpu.Memory.Poke(operandAddr, r)
+	cpu.P.Set(PFLAG_Z, r == 0)
+	cpu.P.Set(PFLAG_N, r > 0x7f)
+	return 3
+}
+
+func (cpu *Cpu) ExecASLA(operandAddr memory.Ptr) int {
+	log.Printf("Exec ASLA")
+	cpu.P.Set(PFLAG_C, cpu.A > 0x7f)
+	cpu.A <<= 1
+	cpu.P.Set(PFLAG_Z, cpu.A == 0)
+	cpu.P.Set(PFLAG_N, cpu.A > 0x7f)
+	return 1
+}
+
+func (cpu *Cpu) ExecASL(operandAddr memory.Ptr) int {
+	log.Printf("Exec ASL")
+	operand := cpu.Memory.Peek(operandAddr)
+	r := operand << 1
+	cpu.Memory.Poke(operandAddr, r)
+	cpu.P.Set(PFLAG_C, operand > 0x7f)
+	cpu.P.Set(PFLAG_Z, r == 0)
+	cpu.P.Set(PFLAG_N, r > 0x7f)
+	return 3
+}
+
+func (cpu *Cpu) ExecROLA(operandAddr memory.Ptr) int {
+	log.Printf("Exec ROLA")
+	cf := cpu.P&PFLAG_C != 0
+	cpu.P.Set(PFLAG_C, cpu.A > 0x7f)
+	cpu.A <<= 1
+	if cf {
+		cpu.A |= 1
+	}
+	cpu.P.Set(PFLAG_Z, cpu.A == 0)
+	cpu.P.Set(PFLAG_N, cpu.A > 0x7f)
+	return 1
+}
+
+func (cpu *Cpu) ExecROL(operandAddr memory.Ptr) int {
+	log.Printf("Exec ROL")
+	operand := cpu.Memory.Peek(operandAddr)
+	r := operand << 1
+	if cpu.P&PFLAG_C != 0 {
+		r |= 1
+	}
+	cpu.Memory.Poke(operandAddr, r)
+	cpu.P.Set(PFLAG_C, operand > 0x7f)
+	cpu.P.Set(PFLAG_Z, r == 0)
+	cpu.P.Set(PFLAG_N, r > 0x7f)
+	return 3
+}
+
+func (cpu *Cpu) ExecLSRA(operandAddr memory.Ptr) int {
+	log.Printf("Exec LSRA")
+	cpu.P.Set(PFLAG_C, cpu.A&1 != 0)
+	cpu.A >>= 1
+	cpu.P.Set(PFLAG_Z, cpu.A == 0)
+	cpu.P.Set(PFLAG_N, false)
+	return 1
+}
+
+func (cpu *Cpu) ExecLSR(operandAddr memory.Ptr) int {
+	log.Printf("Exec LSR")
+	operand := cpu.Memory.Peek(operandAddr)
+	r := operand >> 1
+	cpu.Memory.Poke(operandAddr, r)
+	cpu.P.Set(PFLAG_C, operand&1 != 0)
+	cpu.P.Set(PFLAG_Z, r == 0)
+	cpu.P.Set(PFLAG_N, false)
+	return 3
+}
+
+func (cpu *Cpu) ExecRORA(operandAddr memory.Ptr) int {
+	log.Printf("Exec RORA")
+	cf := cpu.P&PFLAG_C != 0
+	cpu.P.Set(PFLAG_C, cpu.A&1 != 0)
+	cpu.A >>= 1
+	if cf {
+		cpu.A |= 0x80
+	}
+	cpu.P.Set(PFLAG_Z, cpu.A == 0)
+	cpu.P.Set(PFLAG_N, cf)
+	return 1
+}
+
+func (cpu *Cpu) ExecROR(operandAddr memory.Ptr) int {
+	log.Printf("Exec ROR")
+	operand := cpu.Memory.Peek(operandAddr)
+	r := operand >> 1
+	if cpu.P&PFLAG_C != 0 {
+		r |= 0x80
+	}
+	cpu.Memory.Poke(operandAddr, r)
+	cpu.P.Set(PFLAG_C, operand&1 != 0)
+	cpu.P.Set(PFLAG_Z, r == 0)
+	cpu.P.Set(PFLAG_N, r > 0x7f)
+	return 3
 }
