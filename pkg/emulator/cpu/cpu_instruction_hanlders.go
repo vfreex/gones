@@ -18,9 +18,6 @@ var opcodeHandlers = [256]*InstructionHandler{
 	0x24: {(*Cpu).ExecBIT, ZP},
 	0x2c: {(*Cpu).ExecBIT, ABS},
 
-	0x78: {(*Cpu).ExecSEI, IMP},
-	0xd8: {(*Cpu).ExecCLD, IMP},
-
 	0xaa: {(*Cpu).ExecTAX, IMP},
 	0x8a: {(*Cpu).ExecTXA, IMP},
 	0xa8: {(*Cpu).ExecTAY, IMP},
@@ -179,6 +176,16 @@ var opcodeHandlers = [256]*InstructionHandler{
 	0x60: {(*Cpu).ExecRTS, IMP},
 	0x4c: {(*Cpu).ExecJMP, ABS},
 	0x6c: {(*Cpu).ExecJMP, IND},
+
+
+	0x18: {(*Cpu).ExecCLC, IMP},
+	0x38: {(*Cpu).ExecSEC, IMP},
+	0xd8: {(*Cpu).ExecCLD, IMP},
+	0xf8: {(*Cpu).ExecSED, IMP},
+	0x58: {(*Cpu).ExecCLI, IMP},
+	0x78: {(*Cpu).ExecSEI, IMP},
+	0xb8: {(*Cpu).ExecCLV, IMP},
+	0xea: {(*Cpu).ExecNOP, IMP},
 }
 
 type InstructionExecutor func(cpu *Cpu, operandAddr memory.Ptr) (cyclesTook int)
@@ -186,18 +193,6 @@ type InstructionExecutor func(cpu *Cpu, operandAddr memory.Ptr) (cyclesTook int)
 type InstructionHandler struct {
 	Executor       InstructionExecutor
 	AddressingMode AddressingMode
-}
-
-func (cpu *Cpu) ExecSEI(operandAddr memory.Ptr) int {
-	log.Printf("Exec SEI")
-	cpu.P.Set(PFLAG_I, true)
-	return 1
-}
-
-func (cpu *Cpu) ExecCLD(operandAddr memory.Ptr) int {
-	log.Printf("Exec CLD")
-	cpu.P.Set(PFLAG_D, false)
-	return 1
 }
 
 func (cpu *Cpu) ExecLDA(operandAddr memory.Ptr) int {
@@ -698,4 +693,50 @@ func (cpu *Cpu) ExecJMP(operandAddr memory.Ptr) int {
 	cpu.PC = operandAddr
 	log.Printf("jump to PC=%2x", cpu.PC)
 	return 0
+}
+
+func (cpu *Cpu) ExecCLC(operandAddr memory.Ptr) int {
+	log.Printf("Exec CLC")
+	cpu.P.Set(PFLAG_C, false)
+	return 1
+}
+
+func (cpu *Cpu) ExecSEC(operandAddr memory.Ptr) int {
+	log.Printf("Exec SEC")
+	cpu.P.Set(PFLAG_C, true)
+	return 1
+}
+
+func (cpu *Cpu) ExecCLD(operandAddr memory.Ptr) int {
+	log.Printf("Exec CLD")
+	cpu.P.Set(PFLAG_D, false)
+	return 1
+}
+
+func (cpu *Cpu) ExecSED(operandAddr memory.Ptr) int {
+	log.Printf("Exec SED")
+	cpu.P.Set(PFLAG_D, true)
+	return 1
+}
+
+func (cpu *Cpu) ExecCLI(operandAddr memory.Ptr) int {
+	log.Printf("Exec CLI")
+	cpu.P.Set(PFLAG_I, false)
+	return 1
+}
+
+func (cpu *Cpu) ExecSEI(operandAddr memory.Ptr) int {
+	log.Printf("Exec SEI")
+	cpu.P.Set(PFLAG_I, true)
+	return 1
+}
+
+func (cpu *Cpu) ExecCLV(operandAddr memory.Ptr) int {
+	log.Printf("Exec CLV")
+	cpu.P.Set(PFLAG_V, false)
+	return 1
+}
+func (cpu *Cpu) ExecNOP(operandAddr memory.Ptr) int {
+	log.Printf("Exec NOP")
+	return 1
 }
