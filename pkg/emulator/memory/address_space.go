@@ -7,7 +7,8 @@ import (
 
 type AddressSpace interface {
 	Memory
-	MapMemory(offset Ptr, length PtrDist, mode MMapMode, mappedMemory Memory, translator AddressTranslator)
+	Map()
+	AddMapping(offset Ptr, length PtrDist, mode MMapMode, mappedMemory Memory, translator AddressTranslator)
 }
 
 type AddressTranslator func(addr Ptr) Ptr
@@ -28,11 +29,27 @@ type MMapEntry struct {
 	Translator AddressTranslator
 }
 
-type AddressSpaceImpl struct {
-	mMapEntries []MMapEntry
+type MMapEntries []MMapEntry
+
+func (p MMapEntries) Len() int {
+	return len([]MMapEntry(p))
 }
 
-func (as *AddressSpaceImpl) MapMemory(offset Ptr, length PtrDist, mode MMapMode, mappedMemory Memory, translator AddressTranslator) {
+func (p MMapEntries) Less(i, j int) bool {
+	return []MMapEntry(p)[i].Offset < []MMapEntry(p)[j].Offset
+}
+
+func (p MMapEntries) Swap(i, j int) {
+	t := []MMapEntry(p)[i]
+	[]MMapEntry(p)[i] = []MMapEntry(p)[j]
+	[]MMapEntry(p)[j] = t
+}
+
+type AddressSpaceImpl struct {
+	mMapEntries MMapEntries
+}
+
+func (as *AddressSpaceImpl) AddMapping(offset Ptr, length PtrDist, mode MMapMode, mappedMemory Memory, translator AddressTranslator) {
 	as.mMapEntries = append(as.mMapEntries, MMapEntry{
 		Offset:     offset,
 		Length:     length,
@@ -40,6 +57,10 @@ func (as *AddressSpaceImpl) MapMemory(offset Ptr, length PtrDist, mode MMapMode,
 		Memory:     mappedMemory,
 		Translator: translator,
 	})
+}
+
+func (as *AddressSpaceImpl) Map() {
+	sort.Sort(as.mMapEntries)
 }
 
 func (as *AddressSpaceImpl) lookupMappedMemory(addr Ptr) (*MMapEntry, Ptr) {

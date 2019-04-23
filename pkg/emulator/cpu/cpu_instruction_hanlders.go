@@ -218,10 +218,10 @@ func (cpu *Cpu) ExecLDX(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecSTX(operandAddr memory.Ptr) int {
-	log.Printf("cpu memory %04x: %02x", operandAddr, cpu.Memory.Peek(operandAddr))
+	//log.Printf("cpu memory %04x: %02x", operandAddr, cpu.Memory.Peek(operandAddr))
 	log.Printf("Exec STX")
 	cpu.Memory.Poke(operandAddr, cpu.X)
-	log.Printf("cpu memory %04x: %02x", operandAddr, cpu.Memory.Peek(operandAddr))
+	//log.Printf("cpu memory %04x: %02x", operandAddr, cpu.Memory.Peek(operandAddr))
 	return 1
 }
 
@@ -234,10 +234,10 @@ func (cpu *Cpu) ExecLDY(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecSTY(operandAddr memory.Ptr) int {
-	log.Printf("cpu memory %04x: %02x", operandAddr, cpu.Memory.Peek(operandAddr))
+	//log.Printf("cpu memory %04x: %02x", operandAddr, cpu.Memory.Peek(operandAddr))
 	log.Printf("Exec STY")
 	cpu.Memory.Poke(operandAddr, cpu.Y)
-	log.Printf("cpu memory %04x: %02x", operandAddr, cpu.Memory.Peek(operandAddr))
+	//log.Printf("cpu memory %04x: %02x", operandAddr, cpu.Memory.Peek(operandAddr))
 	return 1
 }
 
