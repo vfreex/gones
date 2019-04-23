@@ -174,6 +174,11 @@ var opcodeHandlers = [256]*InstructionHandler{
 	0x7e: {(*Cpu).ExecROR, ABX},
 
 	0x00: {(*Cpu).ExecBRK, IMP},
+	0x40: {(*Cpu).ExecRTI, IMP},
+	0x20: {(*Cpu).ExecJSR, ABS},
+	0x60: {(*Cpu).ExecRTS, IMP},
+	0x4c: {(*Cpu).ExecJMP, ABS},
+	0x6c: {(*Cpu).ExecJMP, IND},
 }
 
 type InstructionExecutor func(cpu *Cpu, operandAddr memory.Ptr) (cyclesTook int)
@@ -661,4 +666,36 @@ func (cpu *Cpu) ExecBRK(operandAddr memory.Ptr) int {
 	cpu.P.Set(PFLAG_I, true)
 	cpu.PC = cpu.ReadInterruptVector(IV_BRK)
 	return 6
+}
+
+func (cpu *Cpu) ExecRTI(operandAddr memory.Ptr) int {
+	log.Printf("Exec RTI")
+	cpu.P = ProcessorStatus(cpu.Pop())
+	cpu.PC = cpu.PopW()
+	return 5
+}
+
+func (cpu *Cpu) ExecJSR(operandAddr memory.Ptr) int {
+	log.Printf("Exec JSR")
+	cpu.PushW(cpu.PC - 1)
+	log.Printf("before jump: PC=%2x", cpu.PC)
+	cpu.PC = operandAddr
+	log.Printf("jump to PC=%2x", cpu.PC)
+	return 5
+}
+
+func (cpu *Cpu) ExecRTS(operandAddr memory.Ptr) int {
+	log.Printf("Exec RTS")
+	log.Printf("before jump: PC=%2x", cpu.PC)
+	cpu.PC = cpu.PopW() + 1
+	log.Printf("jump to PC=%2x", cpu.PC)
+	return 5
+}
+
+func (cpu *Cpu) ExecJMP(operandAddr memory.Ptr) int {
+	log.Printf("Exec JMP")
+	log.Printf("before jump: PC=%2x", cpu.PC)
+	cpu.PC = operandAddr
+	log.Printf("jump to PC=%2x", cpu.PC)
+	return 0
 }
