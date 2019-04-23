@@ -445,7 +445,7 @@ func (cpu *Cpu) ExecPLP(operandAddr memory.Ptr) int {
 
 func (cpu *Cpu) ExecPHP(operandAddr memory.Ptr) int {
 	log.Printf("Exec PHP")
-	cpu.Push(byte(cpu.P))
+	cpu.Push(byte(cpu.P | PFLAG_B))
 	return 2
 }
 
@@ -656,9 +656,9 @@ func (cpu *Cpu) ExecROR(operandAddr memory.Ptr) int {
 func (cpu *Cpu) ExecBRK(operandAddr memory.Ptr) int {
 	log.Printf("Exec BRK")
 	cpu.P.Set(PFLAG_B, true)
-	cpu.Push(byte(cpu.PC >> 8))
-	cpu.Push(byte(cpu.PC & 0xff))
+	cpu.PushW(cpu.PC)
 	cpu.Push(byte(cpu.P))
 	cpu.P.Set(PFLAG_I, true)
+	cpu.PC = cpu.ReadInterruptVector(IV_BRK)
 	return 6
 }

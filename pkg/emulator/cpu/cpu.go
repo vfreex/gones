@@ -10,12 +10,6 @@ const (
 	SP_BASE uint16 = 0x100
 )
 
-const (
-	INT_VEC_NMI     uint16 = 0xFFFA // 7 cycles
-	INT_VEC_RESET   uint16 = 0xFFFC //
-	INT_VEC_IRQ_BRK uint16 = 0xFFFE // 7 cycles
-)
-
 type Cpu struct {
 	// registers
 	PC   ProgramCounter
@@ -64,9 +58,20 @@ func (cpu *Cpu) Push(b byte) {
 	cpu.SP--
 }
 
+func (cpu *Cpu) PushW(w uint16) {
+	cpu.Push(byte(w >> 8))
+	cpu.Push(byte(w & 0xff))
+}
+
 func (cpu *Cpu) Pop() byte {
 	cpu.SP++
 	return cpu.Memory.Peek(0x100 | memory.Ptr(cpu.SP))
+}
+
+func (cpu *Cpu) PopW() uint16 {
+	low := cpu.Pop()
+	high := cpu.Pop()
+	return uint16(high)<<8 | uint16(low)
 }
 
 func (cpu *Cpu) ExecOneInstruction() (cycles int) {
