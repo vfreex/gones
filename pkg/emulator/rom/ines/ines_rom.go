@@ -68,11 +68,15 @@ type INesHeader struct {
 	Flags9     byte
 	_          [6]byte
 }
+
+type INesPrgRom []byte
+type INesChrRom []byte
+
 type INesRom struct {
 	Header  INesHeader
 	Trainer []byte
-	Prg     []byte
-	Chr     []byte
+	Prg     INesPrgRom
+	Chr     INesChrRom
 	Extra   []byte
 }
 
@@ -124,35 +128,6 @@ func (p *INesRom) MatchesFileMagic(reader io.Reader) (bool, error) {
 	return true, nil
 }
 
-//func (p *INesRom) Load(memory []byte) error {
-//	switch p.Header.PrgSize {
-//	case 1:
-//		copy(memory[0x8000:0xc000], p.Prg[:PRG_BANK_SIZE])
-//		copy(memory[0xc000:0x10000], p.Prg[:PRG_BANK_SIZE])
-//	case 2:
-//		copy(memory[0x8000:0xc000], p.Prg[:PRG_BANK_SIZE])
-//		copy(memory[0xc000:0x10000], p.Prg[PRG_BANK_SIZE:PRG_BANK_SIZE*2])
-//	default:
-//		return fmt.Errorf("mapper not supported")
-//	}
-//	return nil
-//}
-
-func (p *INesRom) Peek(addr memory.Ptr) byte {
-	if addr < 0x8000 {
-		panic(fmt.Errorf("invalid ROM address 0x%x", addr))
-	}
-	if p.Header.PrgSize < 2 {
-		return p.Prg[(addr-0x8000)&0xbfff]
-	} else {
-		return p.Prg[addr-0x8000]
-	}
-}
-
-func (p *INesRom) Poke(addr memory.Ptr, val byte) {
-	panic(fmt.Errorf("trying to write to ROM at address 0x%x", addr))
-}
-
 func (h *INesHeader) String() string {
 	m := map[string]interface{}{
 		"type":          "iNES",
@@ -170,4 +145,27 @@ func (h *INesHeader) String() string {
 }
 func (h *INesHeader) GetMapperType() int {
 	return int((h.Flags7 & 0xF0) | (h.Flags6 >> 4))
+}
+
+func (p INesPrgRom) Peek(addr memory.Ptr) byte {
+	if addr < 0x8000 {
+		panic(fmt.Errorf("invalid ROM address 0x%x", addr))
+	}
+	if len(p) > PRG_BANK_SIZE {
+		return p[addr-0x8000]
+	} else {
+		return p[(addr-0x8000)&0xbfff]
+	}
+}
+
+func (p INesPrgRom) Poke(addr memory.Ptr, val byte) {
+	panic(fmt.Errorf("trying to write to ROM at address 0x%x", addr))
+}
+
+func (p INesChrRom) Peek(addr memory.Ptr) byte {
+	panic(fmt.Errorf("not implemented"))
+}
+
+func (p INesChrRom) Poke(addr memory.Ptr, val byte) {
+	panic(fmt.Errorf("not implemented"))
 }

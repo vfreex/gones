@@ -8,7 +8,8 @@ import (
 )
 
 func main() {
-	fileName := "/Users/vfreex/Documents/hack/NES/NES_Dev_01/ctnes.nes"
+	//fileName := "/Users/vfreex/Documents/hack/NES/NES_Dev_01/ctnes.nes"
+	fileName := "/Users/vfreex/Documents/hack/NES/roms/Balloon Fight (U) .nes"
 	romFile, err := os.Open(fileName)
 	if err != nil {
 		panic(err)

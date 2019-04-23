@@ -3,6 +3,7 @@ package nes
 import (
 	"github.com/vfreex/gones/pkg/emulator/cpu"
 	"github.com/vfreex/gones/pkg/emulator/memory"
+	"github.com/vfreex/gones/pkg/emulator/ppu"
 	"github.com/vfreex/gones/pkg/emulator/ram"
 	"github.com/vfreex/gones/pkg/emulator/rom/ines"
 	"log"
@@ -19,35 +20,61 @@ type NESImpl struct {
 	cpu    *cpu.Cpu
 	cpuAS  memory.AddressSpace
 	ram    memory.Memory
+	ppu    *ppu.PPUImpl
+	ppuAS  memory.AddressSpace
+	vram   memory.Memory
 }
 
 func NewNes() NES {
-	cpuAS := &memory.AddressSpaceImpl{}
-	mainRam := ram.NewMainRAM()
 	nes := &NESImpl{
-		cpu:   cpu.NewCpu(cpuAS),
-		cpuAS: cpuAS,
-		ram:   mainRam,
+		cpuAS:  &memory.AddressSpaceImpl{},
+		ram:   ram.NewMainRAM(),
+		ppu:   ppu.NewPPU(),
+		ppuAS: &memory.AddressSpaceImpl{},
+		vram:  ram.NewRAM(0x800),
 	}
+	nes.cpu = cpu.NewCpu(nes.cpuAS)
 
-	// setting up memory map
+	// setting up CPU memory map
 	// 0x0000 - ox1fff RAM
-	cpuAS.AddMapping(0, 0x2000, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
-		mainRam, nil)
-	cpuAS.AddMapping(0x2000, 0x6000, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
-		ram.NewRAM(0x6000), func(addr memory.Ptr) memory.Ptr {
-			return addr - 0x2000
+	nes.cpuAS.AddMapping(0, 0x2000, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
+		nes.ram, nil)
+	// fake memory map range
+	nes.cpuAS.AddMapping(0x4000, 0x14, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
+		ram.NewRAM(0x14), func(addr memory.Ptr) memory.Ptr {
+			return addr - 0x4000
 		})
+	nes.ppu.MapToCPUAddressSpace(nes.cpuAS)
+	// fake memory map range
+	nes.cpuAS.AddMapping(0x4015, 0x3, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
+		ram.NewRAM(0x03), func(addr memory.Ptr) memory.Ptr {
+			return addr - 0x4015
+		})
+
+	// setting up PPU memory map
+	// https://wiki.nesdev.com/w/index.php/PPU_memory_map
+	nes.ppuAS.AddMapping(0x2000, 0x800, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
+	nes.vram, func(addr memory.Ptr) memory.Ptr {
+			return addr & 0xf7ff
+		})
+
 	return nes
 }
 
 func (nes *NESImpl) LoadCartridge(cartridge *ines.INesRom) error {
-	nes.cpuAS.AddMapping(0x8000, 0x8000,
-		memory.MMAP_MODE_READ, cartridge, nil)
+	// load PRG-ROM
+	nes.cpuAS.AddMapping(0x8000, 0x8000, memory.MMAP_MODE_READ,
+		cartridge.Prg, nil)
+
+	// load CHR-ROM
+	nes.ppuAS.AddMapping(0, 0x2000, memory.MMAP_MODE_READ,
+		cartridge.Chr, nil)
 	return nil
 }
 
 func (nes *NESImpl) Start() error {
+	nes.cpuAS.Map()
+	nes.ppuAS.Map()
 	nes.ticker = time.NewTicker(1 * time.Second)
 	cpu := nes.cpu
 	//go func() {
@@ -59,6 +86,6 @@ func (nes *NESImpl) Start() error {
 		}
 		log.Println("realtime CPU clock rate: %v", spentCycles)
 	}
-	//}()
+
 	return nil
 }
