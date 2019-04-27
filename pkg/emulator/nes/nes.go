@@ -1,14 +1,21 @@
 package nes
 
 import (
+	"github.com/golang/glog"
+	pkgLogger "github.com/vfreex/gones/pkg/emulator/common/logger"
 	"github.com/vfreex/gones/pkg/emulator/cpu"
 	"github.com/vfreex/gones/pkg/emulator/memory"
 	"github.com/vfreex/gones/pkg/emulator/ppu"
 	"github.com/vfreex/gones/pkg/emulator/ram"
 	"github.com/vfreex/gones/pkg/emulator/rom/ines"
-	"log"
 	"time"
 )
+
+const (
+	FPS = 60
+)
+
+var logger = pkgLogger.GetLogger()
 
 type NES interface {
 	LoadCartridge(cartridge *ines.INesRom) error
@@ -27,7 +34,7 @@ type NESImpl struct {
 
 func NewNes() NES {
 	nes := &NESImpl{
-		cpuAS:  &memory.AddressSpaceImpl{},
+		cpuAS: &memory.AddressSpaceImpl{},
 		ram:   ram.NewMainRAM(),
 		ppu:   ppu.NewPPU(),
 		ppuAS: &memory.AddressSpaceImpl{},
@@ -54,7 +61,7 @@ func NewNes() NES {
 	// setting up PPU memory map
 	// https://wiki.nesdev.com/w/index.php/PPU_memory_map
 	nes.ppuAS.AddMapping(0x2000, 0x800, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
-	nes.vram, func(addr memory.Ptr) memory.Ptr {
+		nes.vram, func(addr memory.Ptr) memory.Ptr {
 			return addr & 0xf7ff
 		})
 
@@ -75,17 +82,48 @@ func (nes *NESImpl) LoadCartridge(cartridge *ines.INesRom) error {
 func (nes *NESImpl) Start() error {
 	nes.cpuAS.Map()
 	nes.ppuAS.Map()
-	nes.ticker = time.NewTicker(1 * time.Second)
-	cpu := nes.cpu
-	//go func() {
-	for tick := range nes.ticker.C {
-		log.Printf("At time %v", tick)
-		spentCycles := int64(0)
-		for spentCycles < int64(CpuClockRate) {
-			spentCycles += int64(cpu.ExecOneInstruction())
-		}
-		log.Println("realtime CPU clock rate: %v", spentCycles)
-	}
 
+	const fps = 60
+	interval := 1 * time.Second / fps
+	cpuCyclesPerFrame := 29780
+	nes.ticker = time.NewTicker(interval)
+	cpu := nes.cpu
+	cpu.Init()
+
+	//runtime.LockOSThread()
+	//out := bufio.NewWriter(os.Stdout)
+
+	stopCh := make(chan interface{})
+	go func() {
+		for tick := range nes.ticker.C {
+			//tick:=time.Now()
+			glog.Infof("At time %v", tick)
+			spentCycles := int64(0)
+			//logger.SetOutput(devnull)
+			loop := 0
+			for spentCycles < int64(cpuCyclesPerFrame) {
+				cycles := int64(cpu.ExecOneInstruction())
+				//cycles := int64(1)
+				if cycles <= 0 {
+					panic("invalid cycle")
+				}
+				spentCycles += cycles
+				loop++
+				//logger.Debug("")
+				//logger.Infof("spent %d/%d CPU cycles", spentCycles, cpuCyclesPerFrame)
+			}
+			//logger.SetOutput(os.Stderr)
+			logger.Info("----------------------------------------------------------")
+			now := time.Now()
+			actualTime := now.Sub(tick)
+			logger.Infof("spent %v/%v to render this frame after running %v loops / %v cycles",
+				actualTime, interval, loop, spentCycles)
+			//glog.Infof("realtime CPU clock rate: %v", spentCycles/int64(actualTime/time.Second))
+			//nes.ticker.Stop()
+			//close(stopCh)
+		}
+	}()
+	<-stopCh
+	nes.ticker.Stop()
 	return nil
 }

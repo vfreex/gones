@@ -273,7 +273,7 @@ func Decode(opcode byte) (string, AddressingMode) {
 	//cc := opcode & 0x3
 	//bbb := (opcode >> 2) & 0x7
 	//aaa := opcode >> 5
-	//log.Printf("opcode=%x, aaa=%x, bbb=%x, cc=%x", opcode, aaa, bbb, cc)
+	//logger.Printf("opcode=%x, aaa=%x, bbb=%x, cc=%x", opcode, aaa, bbb, cc)
 	info := &InstructionInfos[opcode]
 	opName := info.Nemonics
 	return opName, info.AddressingMode

@@ -1,9 +1,8 @@
 package cpu
 
 import (
-	"encoding/hex"
+	pkloggerger "github.com/vfreex/gones/pkg/emulator/common/logger"
 	"github.com/vfreex/gones/pkg/emulator/memory"
-	"log"
 )
 
 const (
@@ -20,6 +19,8 @@ type Cpu struct {
 	// memory
 	Memory memory.Memory
 }
+
+var logger = pkloggerger.GetLogger()
 
 func NewCpu(memory memory.Memory) *Cpu {
 	cpu := &Cpu{Memory: memory}
@@ -48,7 +49,7 @@ func (cpu *Cpu) Init() {
 func (cpu *Cpu) Test() {
 	for cpu.PC < 0x810f {
 		cycles := cpu.ExecOneInstruction()
-		log.Printf("spent %d cycles", cycles)
+		logger.Infof("spent %d cycles", cycles)
 	}
 
 }
@@ -77,32 +78,33 @@ func (cpu *Cpu) PopW() uint16 {
 func (cpu *Cpu) ExecOneInstruction() (cycles int) {
 	opcode := cpu.Memory.Peek(cpu.PC)
 	cpu.PC++
-	info := &InstructionInfos[opcode]
+	//info := &InstructionInfos[opcode]
 
-	arguments := make([]byte, info.AddressingMode.GetArgumentCount())
-	switch info.AddressingMode.GetArgumentCount() {
-	case 2:
-		arguments[1] = cpu.Memory.Peek(cpu.PC + 1)
-		fallthrough
-	case 1:
-		arguments[0] = cpu.Memory.Peek(cpu.PC + 0)
-	}
-	log.Printf("got instruction at %04x: %02x(%s %s) %s",
-		cpu.PC, opcode, info.Nemonics, info.AddressingMode, hex.EncodeToString(arguments))
+	//arguments := make([]byte, info.AddressingMode.GetArgumentCount())
+	//switch info.AddressingMode.GetArgumentCount() {
+	//case 2:
+	//	arguments[1] = cpu.Memory.Peek(cpu.PC + 1)
+	//	fallthrough
+	//case 1:
+	//	arguments[0] = cpu.Memory.Peek(cpu.PC + 0)
+	//}
+	//logger.Infof("got instruction at %04x: %02x(%s %s) %s",
+	//	cpu.PC, opcode, info.Nemonics, info.AddressingMode, hex.EncodeToString(arguments))
 	handler := opcodeHandlers[opcode]
 	if handler == nil {
-		log.Fatalf("opcode %02x (%s) is not supported", opcode, info.Nemonics)
+		//logger.Fatalf("opcode %02x (%s) is not supported", opcode, info.Nemonics)
+		logger.Fatalf("opcode %02x is not supported", opcode)
 	}
 
 	operandAddr, cycles1 := cpu.AddressOperand(handler.AddressingMode)
-	cpu.logRegisters()
-	log.Printf("will exec opcode=%02x %s (%s) %x \n", opcode, info.Nemonics, handler.AddressingMode, operandAddr)
+	//cpu.logRegisters()
+	//logger.Infof("will exec opcode=%02x %s (%s) %x \n", opcode, info.Nemonics, handler.AddressingMode, operandAddr)
 	cycles2 := handler.Executor(cpu, operandAddr)
-	cpu.logRegisters()
+	//cpu.logRegisters()
 
 	return 1 + cycles1 + cycles2
 }
 
 func (cpu *Cpu) logRegisters() {
-	log.Printf("PC=%04x, P=%s, SP=%02x, A=%02x, X=%02x, Y=%02x", cpu.PC, cpu.P, cpu.SP, cpu.A, cpu.X, cpu.Y)
+	logger.Infof("PC=%04x, P=%s, SP=%02x, A=%02x, X=%02x, Y=%02x", cpu.PC, cpu.P, cpu.SP, cpu.A, cpu.X, cpu.Y)
 }

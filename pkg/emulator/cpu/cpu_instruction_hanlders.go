@@ -2,7 +2,6 @@ package cpu
 
 import (
 	"github.com/vfreex/gones/pkg/emulator/memory"
-	"log"
 )
 
 var opcodeHandlers = [256]*InstructionHandler{
@@ -196,7 +195,7 @@ type InstructionHandler struct {
 }
 
 func (cpu *Cpu) ExecLDA(operandAddr memory.Ptr) int {
-	log.Printf("Exec LDA")
+	logger.Debug("Exec LDA")
 	cpu.A = cpu.Memory.Peek(operandAddr)
 	cpu.P.Set(PFLAG_Z, cpu.A == 0)
 	cpu.P.Set(PFLAG_N, cpu.A >= 128)
@@ -204,13 +203,13 @@ func (cpu *Cpu) ExecLDA(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecSTA(operandAddr memory.Ptr) int {
-	log.Printf("Exec STA")
+	logger.Debug("Exec STA")
 	cpu.Memory.Poke(operandAddr, cpu.A)
 	return 1
 }
 
 func (cpu *Cpu) ExecLDX(operandAddr memory.Ptr) int {
-	log.Printf("Exec LDX")
+	logger.Debug("Exec LDX")
 	cpu.X = cpu.Memory.Peek(operandAddr)
 	cpu.P.Set(PFLAG_Z, cpu.X == 0)
 	cpu.P.Set(PFLAG_N, cpu.X >= 128)
@@ -218,15 +217,15 @@ func (cpu *Cpu) ExecLDX(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecSTX(operandAddr memory.Ptr) int {
-	//log.Printf("cpu memory %04x: %02x", operandAddr, cpu.Memory.Peek(operandAddr))
-	log.Printf("Exec STX")
+	//logger.Debug("cpu memory %04x: %02x", operandAddr, cpu.Memory.Peek(operandAddr))
+	logger.Debug("Exec STX")
 	cpu.Memory.Poke(operandAddr, cpu.X)
-	//log.Printf("cpu memory %04x: %02x", operandAddr, cpu.Memory.Peek(operandAddr))
+	//logger.Debug("cpu memory %04x: %02x", operandAddr, cpu.Memory.Peek(operandAddr))
 	return 1
 }
 
 func (cpu *Cpu) ExecLDY(operandAddr memory.Ptr) int {
-	log.Printf("Exec LDY")
+	logger.Debug("Exec LDY")
 	cpu.Y = cpu.Memory.Peek(operandAddr)
 	cpu.P.Set(PFLAG_Z, cpu.Y == 0)
 	cpu.P.Set(PFLAG_N, cpu.Y >= 128)
@@ -234,57 +233,57 @@ func (cpu *Cpu) ExecLDY(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecSTY(operandAddr memory.Ptr) int {
-	//log.Printf("cpu memory %04x: %02x", operandAddr, cpu.Memory.Peek(operandAddr))
-	log.Printf("Exec STY")
+	//logger.Debug("cpu memory %04x: %02x", operandAddr, cpu.Memory.Peek(operandAddr))
+	logger.Debug("Exec STY")
 	cpu.Memory.Poke(operandAddr, cpu.Y)
-	//log.Printf("cpu memory %04x: %02x", operandAddr, cpu.Memory.Peek(operandAddr))
+	//logger.Debug("cpu memory %04x: %02x", operandAddr, cpu.Memory.Peek(operandAddr))
 	return 1
 }
 
 func (cpu *Cpu) ExecTAX(operandAddr memory.Ptr) int {
-	log.Printf("Exec TAX")
+	logger.Debug("Exec TAX")
 	cpu.X = cpu.A
 	cpu.P.Set(PFLAG_Z, cpu.X == 0)
 	cpu.P.Set(PFLAG_N, cpu.X >= 128)
 	return 1
 }
 func (cpu *Cpu) ExecTXA(operandAddr memory.Ptr) int {
-	log.Printf("Exec TXA")
+	logger.Debug("Exec TXA")
 	cpu.A = cpu.X
 	cpu.P.Set(PFLAG_Z, cpu.A == 0)
 	cpu.P.Set(PFLAG_N, cpu.A >= 128)
 	return 1
 }
 func (cpu *Cpu) ExecTAY(operandAddr memory.Ptr) int {
-	log.Printf("Exec TAY")
+	logger.Debug("Exec TAY")
 	cpu.Y = cpu.A
 	cpu.P.Set(PFLAG_Z, cpu.Y == 0)
 	cpu.P.Set(PFLAG_N, cpu.Y >= 128)
 	return 1
 }
 func (cpu *Cpu) ExecTYA(operandAddr memory.Ptr) int {
-	log.Printf("Exec TYA")
+	logger.Debug("Exec TYA")
 	cpu.A = cpu.Y
 	cpu.P.Set(PFLAG_Z, cpu.A == 0)
 	cpu.P.Set(PFLAG_N, cpu.A >= 128)
 	return 1
 }
 func (cpu *Cpu) ExecTSX(operandAddr memory.Ptr) int {
-	log.Printf("Exec TSX")
+	logger.Debug("Exec TSX")
 	cpu.X = cpu.SP
 	cpu.P.Set(PFLAG_Z, cpu.X == 0)
 	cpu.P.Set(PFLAG_N, cpu.X >= 128)
 	return 1
 }
 func (cpu *Cpu) ExecTXS(operandAddr memory.Ptr) int {
-	log.Printf("Exec TXS")
+	logger.Debug("Exec TXS")
 	cpu.SP = cpu.X
 	// don't set P flags
 	return 1
 }
 
 func (cpu *Cpu) ExecINX(operandAddr memory.Ptr) int {
-	log.Printf("Exec INX")
+	logger.Debug("Exec INX")
 	cpu.X++
 	cpu.P.Set(PFLAG_Z, cpu.X == 0)
 	cpu.P.Set(PFLAG_N, cpu.X >= 128)
@@ -292,7 +291,7 @@ func (cpu *Cpu) ExecINX(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecINY(operandAddr memory.Ptr) int {
-	log.Printf("Exec INY")
+	logger.Debug("Exec INY")
 	cpu.Y++
 	cpu.P.Set(PFLAG_Z, cpu.Y == 0)
 	cpu.P.Set(PFLAG_N, cpu.Y >= 128)
@@ -300,7 +299,7 @@ func (cpu *Cpu) ExecINY(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecDEX(operandAddr memory.Ptr) int {
-	log.Printf("Exec DEX")
+	logger.Debug("Exec DEX")
 	cpu.X--
 	cpu.P.Set(PFLAG_Z, cpu.X == 0)
 	cpu.P.Set(PFLAG_N, cpu.X >= 128)
@@ -308,7 +307,7 @@ func (cpu *Cpu) ExecDEX(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecDEY(operandAddr memory.Ptr) int {
-	log.Printf("Exec DEY")
+	logger.Debug("Exec DEY")
 	cpu.Y--
 	cpu.P.Set(PFLAG_Z, cpu.Y == 0)
 	cpu.P.Set(PFLAG_N, cpu.Y >= 128)
@@ -316,7 +315,7 @@ func (cpu *Cpu) ExecDEY(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecBIT(operandAddr memory.Ptr) int {
-	log.Printf("Exec BIT")
+	logger.Debug("Exec BIT")
 
 	operand := cpu.Memory.Peek(operandAddr)
 	result := cpu.A & operand
@@ -328,103 +327,103 @@ func (cpu *Cpu) ExecBIT(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecBPL(operandAddr memory.Ptr) int {
-	log.Printf("Exec BPL")
+	logger.Debug("Exec BPL")
 	cycles := 1
 	if cpu.P&PFLAG_N == 0 {
 		cycles++
-		log.Printf("before jump: PC=%2x", cpu.PC)
+		logger.Debugf("before jump: PC=%2x", cpu.PC)
 		cpu.PC = operandAddr
-		log.Printf("jump to PC=%2x", operandAddr)
+		logger.Debugf("jump to PC=%2x", operandAddr)
 	}
 	return cycles
 }
 
 func (cpu *Cpu) ExecBMI(operandAddr memory.Ptr) int {
-	log.Printf("Exec BMI")
+	logger.Debug("Exec BMI")
 	cycles := 1
 	if cpu.P&PFLAG_N != 0 {
 		cycles++
-		log.Printf("before jump: PC=%2x", cpu.PC)
+		logger.Debugf("before jump: PC=%2x", cpu.PC)
 		cpu.PC = operandAddr
-		log.Printf("jump to PC=%2x", operandAddr)
+		logger.Debugf("jump to PC=%2x", operandAddr)
 	}
 	return cycles
 }
 
 func (cpu *Cpu) ExecBVC(operandAddr memory.Ptr) int {
-	log.Printf("Exec BVC")
+	logger.Debug("Exec BVC")
 	cycles := 1
 	if cpu.P&PFLAG_V == 0 {
 		cycles++
-		log.Printf("before jump: PC=%2x", cpu.PC)
+		logger.Debugf("before jump: PC=%2x", cpu.PC)
 		cpu.PC = operandAddr
-		log.Printf("jump to PC=%2x", operandAddr)
+		logger.Debugf("jump to PC=%2x", operandAddr)
 	}
 	return cycles
 }
 
 func (cpu *Cpu) ExecBVS(operandAddr memory.Ptr) int {
-	log.Printf("Exec BVS")
+	logger.Debug("Exec BVS")
 	cycles := 1
 	if cpu.P&PFLAG_V != 0 {
 		cycles++
-		log.Printf("before jump: PC=%2x", cpu.PC)
+		logger.Debugf("before jump: PC=%2x", cpu.PC)
 		cpu.PC = operandAddr
-		log.Printf("jump to PC=%2x", operandAddr)
+		logger.Debugf("jump to PC=%2x", operandAddr)
 	}
 	return cycles
 }
 
 func (cpu *Cpu) ExecBCC(operandAddr memory.Ptr) int {
-	log.Printf("Exec BCC")
+	logger.Debug("Exec BCC")
 	cycles := 1
 	if cpu.P&PFLAG_C == 0 {
 		cycles++
-		log.Printf("before jump: PC=%2x", cpu.PC)
+		logger.Debugf("before jump: PC=%2x", cpu.PC)
 		cpu.PC = operandAddr
-		log.Printf("jump to PC=%2x", operandAddr)
+		logger.Debugf("jump to PC=%2x", operandAddr)
 	}
 	return cycles
 }
 
 func (cpu *Cpu) ExecBCS(operandAddr memory.Ptr) int {
-	log.Printf("Exec BCS")
+	logger.Debug("Exec BCS")
 	cycles := 1
 	if cpu.P&PFLAG_C != 0 {
 		cycles++
-		log.Printf("before jump: PC=%2x", cpu.PC)
+		logger.Debugf("before jump: PC=%2x", cpu.PC)
 		cpu.PC = operandAddr
-		log.Printf("jump to PC=%2x", operandAddr)
+		logger.Debugf("jump to PC=%2x", operandAddr)
 	}
 	return cycles
 }
 
 func (cpu *Cpu) ExecBNE(operandAddr memory.Ptr) int {
-	log.Printf("Exec BNE")
+	logger.Debug("Exec BNE")
 	cycles := 1
 	if cpu.P&PFLAG_Z == 0 {
 		cycles++
-		log.Printf("before jump: PC=%2x", cpu.PC)
+		logger.Debugf("before jump: PC=%2x", cpu.PC)
 		cpu.PC = operandAddr
-		log.Printf("jump to PC=%2x", operandAddr)
+		logger.Debugf("jump to PC=%2x", operandAddr)
 	}
 	return cycles
 }
 
 func (cpu *Cpu) ExecBEQ(operandAddr memory.Ptr) int {
-	log.Printf("Exec BEQ")
+	logger.Debug("Exec BEQ")
 	cycles := 1
 	if cpu.P&PFLAG_Z != 0 {
 		cycles++
-		log.Printf("before jump: PC=%2x", cpu.PC)
+		logger.Debugf("before jump: PC=%2x", cpu.PC)
 		cpu.PC = operandAddr
-		log.Printf("jump to PC=%2x", operandAddr)
+		logger.Debugf("jump to PC=%2x", operandAddr)
 	}
 	return cycles
 }
 
 func (cpu *Cpu) ExecPLA(operandAddr memory.Ptr) int {
-	log.Printf("Exec PLA")
+	logger.Debug("Exec PLA")
 	cpu.A = cpu.Pop()
 	cpu.P.Set(PFLAG_Z, cpu.A == 0)
 	cpu.P.Set(PFLAG_N, cpu.A >= 128)
@@ -432,25 +431,25 @@ func (cpu *Cpu) ExecPLA(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecPHA(operandAddr memory.Ptr) int {
-	log.Printf("Exec PHA")
+	logger.Debug("Exec PHA")
 	cpu.Push(cpu.A)
 	return 2
 }
 
 func (cpu *Cpu) ExecPLP(operandAddr memory.Ptr) int {
-	log.Printf("Exec PLP")
+	logger.Debug("Exec PLP")
 	cpu.P = ProcessorStatus(cpu.Pop())
 	return 3
 }
 
 func (cpu *Cpu) ExecPHP(operandAddr memory.Ptr) int {
-	log.Printf("Exec PHP")
+	logger.Debug("Exec PHP")
 	cpu.Push(byte(cpu.P | PFLAG_B))
 	return 2
 }
 
 func (cpu *Cpu) ExecADC(operandAddr memory.Ptr) int {
-	log.Printf("Exec ADC")
+	logger.Debug("Exec ADC")
 	operand := cpu.Memory.Peek(operandAddr)
 	r := uint16(cpu.A) + uint16(operand)
 	if cpu.P&PFLAG_C != 0 {
@@ -467,7 +466,7 @@ func (cpu *Cpu) ExecADC(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecSBC(operandAddr memory.Ptr) int {
-	log.Printf("Exec SBC")
+	logger.Debug("Exec SBC")
 	operand := cpu.Memory.Peek(operandAddr)
 	operand2 := ^operand
 	r := uint16(cpu.A) + uint16(operand2)
@@ -485,7 +484,7 @@ func (cpu *Cpu) ExecSBC(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecORA(operandAddr memory.Ptr) int {
-	log.Printf("Exec ORA")
+	logger.Debug("Exec ORA")
 	operand := cpu.Memory.Peek(operandAddr)
 	cpu.A |= operand
 	cpu.P.Set(PFLAG_Z, cpu.A == 0)
@@ -494,7 +493,7 @@ func (cpu *Cpu) ExecORA(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecAND(operandAddr memory.Ptr) int {
-	log.Printf("Exec AND")
+	logger.Debug("Exec AND")
 	operand := cpu.Memory.Peek(operandAddr)
 	cpu.A &= operand
 	cpu.P.Set(PFLAG_Z, cpu.A == 0)
@@ -503,7 +502,7 @@ func (cpu *Cpu) ExecAND(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecEOR(operandAddr memory.Ptr) int {
-	log.Printf("Exec EOR")
+	logger.Debug("Exec EOR")
 	operand := cpu.Memory.Peek(operandAddr)
 	cpu.A ^= operand
 	cpu.P.Set(PFLAG_Z, cpu.A == 0)
@@ -512,7 +511,7 @@ func (cpu *Cpu) ExecEOR(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecCMP(operandAddr memory.Ptr) int {
-	log.Printf("Exec CMP")
+	logger.Debug("Exec CMP")
 	operand := cpu.Memory.Peek(operandAddr)
 	r := cpu.A - operand
 	cpu.P.Set(PFLAG_C, cpu.A >= operand)
@@ -522,7 +521,7 @@ func (cpu *Cpu) ExecCMP(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecCPX(operandAddr memory.Ptr) int {
-	log.Printf("Exec CPX")
+	logger.Debug("Exec CPX")
 	operand := cpu.Memory.Peek(operandAddr)
 	r := cpu.X - operand
 	cpu.P.Set(PFLAG_C, cpu.X >= operand)
@@ -532,7 +531,7 @@ func (cpu *Cpu) ExecCPX(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecCPY(operandAddr memory.Ptr) int {
-	log.Printf("Exec CPY")
+	logger.Debug("Exec CPY")
 	operand := cpu.Memory.Peek(operandAddr)
 	r := cpu.Y - operand
 	cpu.P.Set(PFLAG_C, cpu.Y >= operand)
@@ -542,7 +541,7 @@ func (cpu *Cpu) ExecCPY(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecINC(operandAddr memory.Ptr) int {
-	log.Printf("Exec INC")
+	logger.Debug("Exec INC")
 	r := cpu.Memory.Peek(operandAddr) + 1
 	cpu.Memory.Poke(operandAddr, r)
 	cpu.P.Set(PFLAG_Z, r == 0)
@@ -551,7 +550,7 @@ func (cpu *Cpu) ExecINC(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecDEC(operandAddr memory.Ptr) int {
-	log.Printf("Exec DEC")
+	logger.Debug("Exec DEC")
 	r := cpu.Memory.Peek(operandAddr) - 1
 	cpu.Memory.Poke(operandAddr, r)
 	cpu.P.Set(PFLAG_Z, r == 0)
@@ -560,7 +559,7 @@ func (cpu *Cpu) ExecDEC(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecASLA(operandAddr memory.Ptr) int {
-	log.Printf("Exec ASLA")
+	logger.Debug("Exec ASLA")
 	cpu.P.Set(PFLAG_C, cpu.A > 0x7f)
 	cpu.A <<= 1
 	cpu.P.Set(PFLAG_Z, cpu.A == 0)
@@ -569,7 +568,7 @@ func (cpu *Cpu) ExecASLA(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecASL(operandAddr memory.Ptr) int {
-	log.Printf("Exec ASL")
+	logger.Debug("Exec ASL")
 	operand := cpu.Memory.Peek(operandAddr)
 	r := operand << 1
 	cpu.Memory.Poke(operandAddr, r)
@@ -580,7 +579,7 @@ func (cpu *Cpu) ExecASL(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecROLA(operandAddr memory.Ptr) int {
-	log.Printf("Exec ROLA")
+	logger.Debug("Exec ROLA")
 	cf := cpu.P&PFLAG_C != 0
 	cpu.P.Set(PFLAG_C, cpu.A > 0x7f)
 	cpu.A <<= 1
@@ -593,7 +592,7 @@ func (cpu *Cpu) ExecROLA(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecROL(operandAddr memory.Ptr) int {
-	log.Printf("Exec ROL")
+	logger.Debug("Exec ROL")
 	operand := cpu.Memory.Peek(operandAddr)
 	r := operand << 1
 	if cpu.P&PFLAG_C != 0 {
@@ -607,7 +606,7 @@ func (cpu *Cpu) ExecROL(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecLSRA(operandAddr memory.Ptr) int {
-	log.Printf("Exec LSRA")
+	logger.Debug("Exec LSRA")
 	cpu.P.Set(PFLAG_C, cpu.A&1 != 0)
 	cpu.A >>= 1
 	cpu.P.Set(PFLAG_Z, cpu.A == 0)
@@ -616,7 +615,7 @@ func (cpu *Cpu) ExecLSRA(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecLSR(operandAddr memory.Ptr) int {
-	log.Printf("Exec LSR")
+	logger.Debug("Exec LSR")
 	operand := cpu.Memory.Peek(operandAddr)
 	r := operand >> 1
 	cpu.Memory.Poke(operandAddr, r)
@@ -627,7 +626,7 @@ func (cpu *Cpu) ExecLSR(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecRORA(operandAddr memory.Ptr) int {
-	log.Printf("Exec RORA")
+	logger.Debug("Exec RORA")
 	cf := cpu.P&PFLAG_C != 0
 	cpu.P.Set(PFLAG_C, cpu.A&1 != 0)
 	cpu.A >>= 1
@@ -640,7 +639,7 @@ func (cpu *Cpu) ExecRORA(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecROR(operandAddr memory.Ptr) int {
-	log.Printf("Exec ROR")
+	logger.Debug("Exec ROR")
 	operand := cpu.Memory.Peek(operandAddr)
 	r := operand >> 1
 	if cpu.P&PFLAG_C != 0 {
@@ -654,7 +653,7 @@ func (cpu *Cpu) ExecROR(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecBRK(operandAddr memory.Ptr) int {
-	log.Printf("Exec BRK")
+	logger.Debug("Exec BRK")
 	cpu.P.Set(PFLAG_B, true)
 	cpu.PushW(cpu.PC)
 	cpu.Push(byte(cpu.P))
@@ -664,79 +663,79 @@ func (cpu *Cpu) ExecBRK(operandAddr memory.Ptr) int {
 }
 
 func (cpu *Cpu) ExecRTI(operandAddr memory.Ptr) int {
-	log.Printf("Exec RTI")
+	logger.Debug("Exec RTI")
 	cpu.P = ProcessorStatus(cpu.Pop())
 	cpu.PC = cpu.PopW()
 	return 5
 }
 
 func (cpu *Cpu) ExecJSR(operandAddr memory.Ptr) int {
-	log.Printf("Exec JSR")
+	logger.Debug("Exec JSR")
 	cpu.PushW(cpu.PC - 1)
-	log.Printf("before jump: PC=%2x", cpu.PC)
+	logger.Debugf("before jump: PC=%2x", cpu.PC)
 	cpu.PC = operandAddr
-	log.Printf("jump to PC=%2x", cpu.PC)
+	logger.Debugf("jump to PC=%2x", cpu.PC)
 	return 5
 }
 
 func (cpu *Cpu) ExecRTS(operandAddr memory.Ptr) int {
-	log.Printf("Exec RTS")
-	log.Printf("before jump: PC=%2x", cpu.PC)
+	logger.Debug("Exec RTS")
+	logger.Debugf("before jump: PC=%2x", cpu.PC)
 	cpu.PC = cpu.PopW() + 1
-	log.Printf("jump to PC=%2x", cpu.PC)
+	logger.Debugf("jump to PC=%2x", cpu.PC)
 	return 5
 }
 
 func (cpu *Cpu) ExecJMP(operandAddr memory.Ptr) int {
-	log.Printf("Exec JMP")
-	log.Printf("before jump: PC=%2x", cpu.PC)
+	logger.Debug("Exec JMP")
+	logger.Debugf("before jump: PC=%2x", cpu.PC)
 	cpu.PC = operandAddr
-	log.Printf("jump to PC=%2x", cpu.PC)
+	logger.Debugf("jump to PC=%2x", cpu.PC)
 	return 0
 }
 
 func (cpu *Cpu) ExecCLC(operandAddr memory.Ptr) int {
-	log.Printf("Exec CLC")
+	logger.Debug("Exec CLC")
 	cpu.P.Set(PFLAG_C, false)
 	return 1
 }
 
 func (cpu *Cpu) ExecSEC(operandAddr memory.Ptr) int {
-	log.Printf("Exec SEC")
+	logger.Debug("Exec SEC")
 	cpu.P.Set(PFLAG_C, true)
 	return 1
 }
 
 func (cpu *Cpu) ExecCLD(operandAddr memory.Ptr) int {
-	log.Printf("Exec CLD")
+	logger.Debug("Exec CLD")
 	cpu.P.Set(PFLAG_D, false)
 	return 1
 }
 
 func (cpu *Cpu) ExecSED(operandAddr memory.Ptr) int {
-	log.Printf("Exec SED")
+	logger.Debug("Exec SED")
 	cpu.P.Set(PFLAG_D, true)
 	return 1
 }
 
 func (cpu *Cpu) ExecCLI(operandAddr memory.Ptr) int {
-	log.Printf("Exec CLI")
+	logger.Debug("Exec CLI")
 	cpu.P.Set(PFLAG_I, false)
 	return 1
 }
 
 func (cpu *Cpu) ExecSEI(operandAddr memory.Ptr) int {
-	log.Printf("Exec SEI")
+	logger.Debug("Exec SEI")
 	cpu.P.Set(PFLAG_I, true)
 	return 1
 }
 
 func (cpu *Cpu) ExecCLV(operandAddr memory.Ptr) int {
-	log.Printf("Exec CLV")
+	logger.Debug("Exec CLV")
 	cpu.P.Set(PFLAG_V, false)
 	return 1
 }
 func (cpu *Cpu) ExecNOP(operandAddr memory.Ptr) int {
-	log.Printf("Exec NOP")
+	logger.Debug("Exec NOP")
 	return 1
 }
