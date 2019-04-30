@@ -1,7 +1,8 @@
 package cpu
 
 import (
-	pkloggerger "github.com/vfreex/gones/pkg/emulator/common/logger"
+	"encoding/hex"
+	logger2 "github.com/vfreex/gones/pkg/emulator/common/logger"
 	"github.com/vfreex/gones/pkg/emulator/memory"
 )
 
@@ -20,7 +21,7 @@ type Cpu struct {
 	Memory memory.Memory
 }
 
-var logger = pkloggerger.GetLogger()
+var logger = logger2.GetLogger()
 
 func NewCpu(memory memory.Memory) *Cpu {
 	cpu := &Cpu{Memory: memory}
@@ -40,10 +41,9 @@ func (cpu *Cpu) Init() {
 		Internal memory ($0000-$07FF) has unreliable startup state. Some machines may have consistent RAM contents at power-on, but others do not.
 		Emulators often implement a consistent RAM startup state (e.g. all $00 or $FF, or a particular pattern), and flash carts like the PowerPak may partially or fully initialize RAM before starting a program, so an NES programmer must be careful not to rely on the startup contents of RAM.
 	*/
-	//cpu.P = 0x34
-	//cpu.A, cpu.X, cpu.Y = 0, 0, 0
-	//cpu.SP = 0xfd
-	cpu.PC = 0x8000
+	cpu.P = 0x34
+	cpu.A, cpu.X, cpu.Y = 0, 0, 0
+	cpu.SP = 0xfd
 }
 
 func (cpu *Cpu) Test() {
@@ -77,34 +77,34 @@ func (cpu *Cpu) PopW() uint16 {
 
 func (cpu *Cpu) ExecOneInstruction() (cycles int) {
 	opcode := cpu.Memory.Peek(cpu.PC)
-	cpu.PC++
-	//info := &InstructionInfos[opcode]
+	info := &InstructionInfos[opcode]
 
-	//arguments := make([]byte, info.AddressingMode.GetArgumentCount())
-	//switch info.AddressingMode.GetArgumentCount() {
-	//case 2:
-	//	arguments[1] = cpu.Memory.Peek(cpu.PC + 1)
-	//	fallthrough
-	//case 1:
-	//	arguments[0] = cpu.Memory.Peek(cpu.PC + 0)
-	//}
-	//logger.Infof("got instruction at %04x: %02x(%s %s) %s",
-	//	cpu.PC, opcode, info.Nemonics, info.AddressingMode, hex.EncodeToString(arguments))
+	arguments := make([]byte, info.AddressingMode.GetArgumentCount())
+	switch info.AddressingMode.GetArgumentCount() {
+	case 2:
+		arguments[1] = cpu.Memory.Peek(cpu.PC + 2)
+		fallthrough
+	case 1:
+		arguments[0] = cpu.Memory.Peek(cpu.PC + 1)
+	}
+	logger.Debugf("got instruction at %04x: %02x(%s %s) %s",
+		cpu.PC, opcode, info.Nemonics, info.AddressingMode, hex.EncodeToString(arguments))
 	handler := opcodeHandlers[opcode]
 	if handler == nil {
 		//logger.Fatalf("opcode %02x (%s) is not supported", opcode, info.Nemonics)
 		logger.Fatalf("opcode %02x is not supported", opcode)
 	}
 
+	cpu.PC++
 	operandAddr, cycles1 := cpu.AddressOperand(handler.AddressingMode)
-	//cpu.logRegisters()
-	//logger.Infof("will exec opcode=%02x %s (%s) %x \n", opcode, info.Nemonics, handler.AddressingMode, operandAddr)
+	cpu.logRegisters()
+	logger.Debugf("will exec opcode=%02x %s (%s) %x \n", opcode, info.Nemonics, handler.AddressingMode, operandAddr)
 	cycles2 := handler.Executor(cpu, operandAddr)
-	//cpu.logRegisters()
+	cpu.logRegisters()
 
 	return 1 + cycles1 + cycles2
 }
 
 func (cpu *Cpu) logRegisters() {
-	logger.Infof("PC=%04x, P=%s, SP=%02x, A=%02x, X=%02x, Y=%02x", cpu.PC, cpu.P, cpu.SP, cpu.A, cpu.X, cpu.Y)
+	logger.Debugf("PC=%04x, P=%s, SP=%02x, A=%02x, X=%02x, Y=%02x", cpu.PC, cpu.P, cpu.SP, cpu.A, cpu.X, cpu.Y)
 }
