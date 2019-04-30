@@ -32,6 +32,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/vfreex/gones/pkg/emulator/memory"
+	"github.com/vfreex/gones/pkg/emulator/ram"
 	"io"
 )
 
@@ -78,6 +79,7 @@ type INesRom struct {
 	Prg     INesPrgRom
 	Chr     INesChrRom
 	Extra   []byte
+	ChrRam  *ram.RAM
 }
 
 func NewINesRom(reader io.Reader) (*INesRom, error) {
@@ -106,9 +108,13 @@ func NewINesRom(reader io.Reader) (*INesRom, error) {
 		return rom, err
 	}
 
-	rom.Chr = make([]byte, CHR_BANK_SIZE*int(header.ChrSize))
-	if _, err := reader.Read(rom.Chr); err != nil {
-		return rom, err
+	if header.ChrSize > 0 {
+		rom.Chr = make([]byte, CHR_BANK_SIZE*int(header.ChrSize))
+		if _, err := reader.Read(rom.Chr); err != nil {
+			return rom, err
+		}
+	} else {
+		rom.ChrRam = ram.NewRAM(CHR_BANK_SIZE)
 	}
 	extra := &bytes.Buffer{}
 	if _, err := io.Copy(extra, reader); err != nil {
@@ -163,7 +169,10 @@ func (p INesPrgRom) Poke(addr memory.Ptr, val byte) {
 }
 
 func (p INesChrRom) Peek(addr memory.Ptr) byte {
-	panic(fmt.Errorf("not implemented"))
+	if addr > memory.Ptr(len(p)) {
+		panic(fmt.Errorf("invalid ROM address 0x%x", addr))
+	}
+	return p[addr]
 }
 
 func (p INesChrRom) Poke(addr memory.Ptr, val byte) {

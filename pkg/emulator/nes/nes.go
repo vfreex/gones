@@ -23,24 +23,26 @@ type NES interface {
 }
 
 type NESImpl struct {
-	ticker *time.Ticker
-	cpu    *cpu.Cpu
-	cpuAS  memory.AddressSpace
-	ram    memory.Memory
-	ppu    *ppu.PPUImpl
-	ppuAS  memory.AddressSpace
-	vram   memory.Memory
+	ticker  *time.Ticker
+	cpu     *cpu.Cpu
+	cpuAS   memory.AddressSpace
+	ram     memory.Memory
+	ppu     *ppu.PPUImpl
+	ppuAS   memory.AddressSpace
+	vram    memory.Memory
+	display *NesDiplay
 }
 
 func NewNes() NES {
 	nes := &NESImpl{
 		cpuAS: &memory.AddressSpaceImpl{},
 		ram:   ram.NewMainRAM(),
-		ppu:   ppu.NewPPU(),
 		ppuAS: &memory.AddressSpaceImpl{},
 		vram:  ram.NewRAM(0x800),
 	}
 	nes.cpu = cpu.NewCpu(nes.cpuAS)
+	nes.ppu = ppu.NewPPU(nes.ppuAS)
+	nes.display = NewDisplay(&nes.ppu.RenderedBuffer)
 
 	// setting up CPU memory map
 	// 0x0000 - ox1fff RAM
@@ -51,6 +53,8 @@ func NewNes() NES {
 		ram.NewRAM(0x14), func(addr memory.Ptr) memory.Ptr {
 			return addr - 0x4000
 		})
+	nes.cpuAS.AddMapping(0x4014, 1, memory.MMAP_MODE_WRITE,
+		memory.NewOamDma(nes.cpuAS, &nes.ppu.SprRam), nil)
 	nes.ppu.MapToCPUAddressSpace(nes.cpuAS)
 	// fake memory map range
 	nes.cpuAS.AddMapping(0x4015, 0x3, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
@@ -60,10 +64,12 @@ func NewNes() NES {
 
 	// setting up PPU memory map
 	// https://wiki.nesdev.com/w/index.php/PPU_memory_map
-	nes.ppuAS.AddMapping(0x2000, 0x800, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
+	nes.ppuAS.AddMapping(0x2000, 0x1000, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
 		nes.vram, func(addr memory.Ptr) memory.Ptr {
-			return addr & 0xf7ff
+			return (addr - 0x2000) & 0xf7ff
 		})
+	nes.ppuAS.AddMapping(0x3F00, 0x20,
+		memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE, &nes.ppu.Palette, nil)
 
 	return nes
 }
@@ -74,8 +80,14 @@ func (nes *NESImpl) LoadCartridge(cartridge *ines.INesRom) error {
 		cartridge.Prg, nil)
 
 	// load CHR-ROM
-	nes.ppuAS.AddMapping(0, 0x2000, memory.MMAP_MODE_READ,
-		cartridge.Chr, nil)
+	if len(cartridge.Chr) > 0 {
+		nes.ppuAS.AddMapping(0, 0x2000, memory.MMAP_MODE_READ,
+			cartridge.Chr, nil)
+	} else {
+		nes.ppuAS.AddMapping(0, 0x2000, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
+			cartridge.ChrRam, nil)
+	}
+
 	return nil
 }
 
@@ -83,17 +95,18 @@ func (nes *NESImpl) Start() error {
 	nes.cpuAS.Map()
 	nes.ppuAS.Map()
 
-	const fps = 60
+	const fps = 1
 	interval := 1 * time.Second / fps
 	cpuCyclesPerFrame := 29780
 	nes.ticker = time.NewTicker(interval)
 	cpu := nes.cpu
 	cpu.Init()
+	cpu.Reset()
 
 	//runtime.LockOSThread()
 	//out := bufio.NewWriter(os.Stdout)
 
-	stopCh := make(chan interface{})
+	//stopCh := make(chan interface{})
 	go func() {
 		for tick := range nes.ticker.C {
 			//tick:=time.Now()
@@ -107,11 +120,18 @@ func (nes *NESImpl) Start() error {
 				if cycles <= 0 {
 					panic("invalid cycle")
 				}
+				//for pp := int64(0); pp < spentCycles*3; pp++ {
+				//	nes.ppu.Render()
+				//}
 				spentCycles += cycles
 				loop++
 				//logger.Debug("")
 				//logger.Infof("spent %d/%d CPU cycles", spentCycles, cpuCyclesPerFrame)
 			}
+			nes.ppu.RenderFrame()
+			nes.display.Refresh()
+			nes.cpu.NMI()
+			nes.ppu.Frames++
 			//logger.SetOutput(os.Stderr)
 			logger.Info("----------------------------------------------------------")
 			now := time.Now()
@@ -123,7 +143,8 @@ func (nes *NESImpl) Start() error {
 			//close(stopCh)
 		}
 	}()
-	<-stopCh
+	nes.display.Show()
+	//<-stopCh
 	nes.ticker.Stop()
 	return nil
 }
