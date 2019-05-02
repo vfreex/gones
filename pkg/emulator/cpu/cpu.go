@@ -2,6 +2,7 @@ package cpu
 
 import (
 	"encoding/hex"
+	"fmt"
 	logger2 "github.com/vfreex/gones/pkg/emulator/common/logger"
 	"github.com/vfreex/gones/pkg/emulator/memory"
 )
@@ -76,9 +77,25 @@ func (cpu *Cpu) PopW() uint16 {
 }
 
 func (cpu *Cpu) ExecOneInstruction() (cycles int) {
+	cpu.logInstruction()
+	opcode := cpu.Memory.Peek(cpu.PC)
+	handler := opcodeHandlers[opcode]
+	if handler == nil {
+		logger.Fatalf("opcode %02x is not supported", opcode)
+	}
+
+	cpu.PC++
+	operandAddr, cycles1 := cpu.AddressOperand(handler.AddressingMode)
+	cpu.logRegisters()
+	cycles2 := handler.Executor(cpu, operandAddr)
+	cpu.logRegisters()
+
+	return 1 + cycles1 + cycles2
+}
+
+func (cpu *Cpu) logInstruction() {
 	opcode := cpu.Memory.Peek(cpu.PC)
 	info := &InstructionInfos[opcode]
-
 	arguments := make([]byte, info.AddressingMode.GetArgumentCount())
 	switch info.AddressingMode.GetArgumentCount() {
 	case 2:
@@ -87,24 +104,41 @@ func (cpu *Cpu) ExecOneInstruction() (cycles int) {
 	case 1:
 		arguments[0] = cpu.Memory.Peek(cpu.PC + 1)
 	}
-	logger.Debugf("got instruction at %04x: %02x(%s %s) %s",
-		cpu.PC, opcode, info.Nemonics, info.AddressingMode, hex.EncodeToString(arguments))
-	handler := opcodeHandlers[opcode]
-	if handler == nil {
-		//logger.Fatalf("opcode %02x (%s) is not supported", opcode, info.Nemonics)
-		logger.Fatalf("opcode %02x is not supported", opcode)
+	line := fmt.Sprintf("L%04x: %s %s ; %02x (%s-%s) %s",
+		cpu.PC, info.Nemonics, formatInstructionArgument(info.AddressingMode, arguments),
+		opcode, info.Nemonics, info.AddressingMode.String(), hex.EncodeToString(arguments))
+	logger.Debug(line)
+}
+
+func formatInstructionArgument(am AddressingMode, args []byte) string {
+	r := ""
+	switch am {
+	case IMM:
+		r = fmt.Sprintf("#$%x", args[0])
+	case ZP:
+		r = fmt.Sprintf("$%02x", args[0])
+	case ZPX:
+		r = fmt.Sprintf("$%02x,X", args[0])
+	case ZPY:
+		r = fmt.Sprintf("$%02x,Y", args[0])
+	case REL:
+		r = fmt.Sprintf("*$%+x", int8(args[0]))
+	case ABS:
+		r = fmt.Sprintf("$%02x%02x", args[1], args[0])
+	case ABX:
+		r = fmt.Sprintf("$%02x%02x,X", args[1], args[0])
+	case ABY:
+		r = fmt.Sprintf("$%02x%02x,Y", args[1], args[0])
+	case IND:
+		r = fmt.Sprintf("($%02x%02x)", args[1], args[0])
+	case IZX:
+		r = fmt.Sprintf("($%02x,X)", args[0])
+	case IZY:
+		r = fmt.Sprintf("($%02x),Y", args[0])
 	}
-
-	cpu.PC++
-	operandAddr, cycles1 := cpu.AddressOperand(handler.AddressingMode)
-	cpu.logRegisters()
-	logger.Debugf("will exec opcode=%02x %s (%s) %x \n", opcode, info.Nemonics, handler.AddressingMode, operandAddr)
-	cycles2 := handler.Executor(cpu, operandAddr)
-	cpu.logRegisters()
-
-	return 1 + cycles1 + cycles2
+	return r
 }
 
 func (cpu *Cpu) logRegisters() {
-	logger.Debugf("PC=%04x, P=%s, SP=%02x, A=%02x, X=%02x, Y=%02x", cpu.PC, cpu.P, cpu.SP, cpu.A, cpu.X, cpu.Y)
+	logger.Debugf(";; PC=%04x, P=%s, SP=%02x, A=%02x, X=%02x, Y=%02x", cpu.PC, cpu.P, cpu.SP, cpu.A, cpu.X, cpu.Y)
 }
