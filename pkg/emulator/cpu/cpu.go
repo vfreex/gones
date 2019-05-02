@@ -20,6 +20,9 @@ type Cpu struct {
 	X, Y IndexRegister
 	// memory
 	Memory memory.Memory
+	// interrupts
+	NMI bool
+	IRQ bool
 }
 
 var logger = logger2.GetLogger()
@@ -44,7 +47,7 @@ func (cpu *Cpu) Init() {
 	*/
 	cpu.P = 0x34
 	cpu.A, cpu.X, cpu.Y = 0, 0, 0
-	cpu.SP = 0xfd
+	cpu.SP = 0
 }
 
 func (cpu *Cpu) Test() {
@@ -77,6 +80,11 @@ func (cpu *Cpu) PopW() uint16 {
 }
 
 func (cpu *Cpu) ExecOneInstruction() (cycles int) {
+	if cpu.NMI {
+		cpu.ExecNMI()
+	} else if cpu.IRQ && cpu.P & PFLAG_I == 0 {
+		cpu.ExecIRQ()
+	}
 	cpu.logInstruction()
 	opcode := cpu.Memory.Peek(cpu.PC)
 	handler := opcodeHandlers[opcode]

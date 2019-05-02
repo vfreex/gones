@@ -26,7 +26,7 @@ func (cpu *Cpu) Reset() {
 	// TODO: APU was silenced ($4015 = 0)
 }
 
-func (cpu *Cpu) IRQ() {
+func (cpu *Cpu) ExecIRQ() {
 	logger.Debug("handling IRQ")
 	cpu.P.Set(PFLAG_B, false)
 	cpu.PushW(cpu.PC)
@@ -35,11 +35,12 @@ func (cpu *Cpu) IRQ() {
 	cpu.PC = cpu.ReadInterruptVector(IV_IRQ)
 }
 
-func (cpu *Cpu) NMI() {
+func (cpu *Cpu) ExecNMI() {
 	logger.Debug("handling NMI")
 	cpu.P.Set(PFLAG_B, false)
 	cpu.PushW(cpu.PC)
 	cpu.Push(byte(cpu.P))
 	cpu.P.Set(PFLAG_I, true)
 	cpu.PC = cpu.ReadInterruptVector(IV_NMI)
+	cpu.NMI = false
 }
