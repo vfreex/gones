@@ -81,6 +81,8 @@ type Registers struct {
 	latch      bool
 	latchCache byte
 	vramAddr   memory.Ptr
+	hscroll    byte
+	vscroll    byte
 	ctrl       PPUCtrl
 	mask       PPUMask
 	status     PPUStatus
@@ -119,6 +121,7 @@ func (p *Registers) Peek(addr memory.Ptr) byte {
 	case PPUSTATUS:
 		r = byte(p.status)
 		p.status &= ^PPUStatus_VBlank
+		p.latch = false
 	case OAMDATA:
 		// The address is NOT auto-incremented after <reading> from 2004h.
 		return p.ppu.SprRam.data[p.oamAddr]
@@ -157,14 +160,22 @@ func (p *Registers) Poke(addr memory.Ptr, val byte) {
 		// The Port 2003h address is auto-incremented by 1 after each <write> to 2004h.
 		p.ppu.SprRam.data[p.oamAddr] = val
 		p.oamAddr++
+	case PPUSCROLL:
+		if !p.latch {
+			p.hscroll = val
+		} else {
+			p.vscroll = val
+		}
+		p.latch = !p.latch
 	case PPUADDR:
 		// After reading PPUSTATUS to reset the address latch,
 		// write the 16-bit address of VRAM you want to access here
 		if !p.latch { // first write, upper byte (6bit)
-			p.vramAddr = memory.Ptr(val) & 0x3F << 8
+			p.vramAddr = (memory.Ptr(val) & 0x3F) << 8
 		} else { // second write, lower byte (8bit)
 			p.vramAddr |= memory.Ptr(val)
 		}
+		p.latch = !p.latch
 	case PPUDATA:
 		p.ppu.vram.Poke(p.vramAddr, val)
 		// The PPU will auto-increment the VRAM address (selected via Port 2006h)
@@ -175,18 +186,22 @@ func (p *Registers) Poke(addr memory.Ptr, val byte) {
 			p.vramAddr++
 		}
 	case OAMDMA:
-		p.onOAMDMAWrite()
+		p.onOAMDMAWrite(val)
 	default:
 		panic(fmt.Errorf("PPU register %04x is not writable", addr))
 	}
 }
 
-func (p Registers) onOAMDMAWrite() {
+func (p *Registers) onOAMDMAWrite(val byte) {
 	// Transfers 256 bytes from CPU Memory area into SPR-RAM. The transfer takes 512 CPU clock cycles, two cycles per byte, the transfer starts about immediately after writing to 4014h: The CPU either fetches the first byte of the next instruction, and then begins DMA, or fetches and executes the next instruction, and then begins DMA. The CPU is halted during transfer.
 	// Bit7-0  Upper 8bit of source address (Source=N*100h) (Lower bits are zero)
 	// Data is written to Port 2004h. The destination address in SPR-RAM is thus [2003h], which should be normally initialized to zero - unless one wants to "rotate" the target area, which may be useful when implementing more than eight (flickering) sprites per scanline.
 	//srcAddr := memory.Ptr(p.registers[OAMDMA].value) << 8
 	//destAddr := memory.Ptr(p.registers[OAMADDR].value)
 	//p.ppu.sprRam.data[destAddr] = ?
-	panic("not implemented")
+	src := memory.Ptr(val) << 8
+	for i := memory.PtrDist(0); i < 256; i++ {
+		b := p.ppu.cpu.Memory.Peek(src + i)
+		p.Poke(OAMDATA, b)
+	}
 }

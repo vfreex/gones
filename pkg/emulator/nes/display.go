@@ -4,6 +4,7 @@ import (
 	"fyne.io/fyne"
 	"fyne.io/fyne/app"
 	"fyne.io/fyne/canvas"
+	"fyne.io/fyne/widget"
 	"github.com/vfreex/gones/pkg/emulator/ppu"
 	"image"
 	"image/color"
@@ -19,11 +20,14 @@ const (
 )
 
 type NesDiplay struct {
-	screenPixels *[SCREEN_HEIGHT][SCREEN_WIDTH]ppu.RBGColor
-	app          fyne.App
-	mainWindow   fyne.Window
-	raster       *canvas.Raster
-	canvasObj    fyne.CanvasObject
+	screenPixels    *[SCREEN_HEIGHT][SCREEN_WIDTH]ppu.RBGColor
+	app             fyne.App
+	mainWindow      fyne.Window
+	raster          *canvas.Raster
+	canvasObj       fyne.CanvasObject
+	NextCh          chan int
+	StepInstruction bool
+	StepFrame       bool
 }
 
 var rnd = rand.New(rand.NewSource(time.Now().Unix()))
@@ -36,8 +40,31 @@ func NewDisplay(screenPixels *[SCREEN_HEIGHT][SCREEN_WIDTH]ppu.RBGColor) *NesDip
 		app:          app,
 		mainWindow:   mainWindow,
 		screenPixels: screenPixels,
+		NextCh:       make(chan int, 1),
+		StepInstruction: true,
 	}
-	mainWindow.SetContent(display.render())
+	gameCanvas := display.render()
+	mainWindow.SetContent(widget.NewVBox(gameCanvas,
+		widget.NewButton(">", func() {
+			display.StepInstruction = true
+			display.StepFrame = false
+			display.NextCh <- 1
+		}),
+		widget.NewButton(">>", func() {
+			display.StepInstruction = false
+			display.StepFrame = true
+			display.NextCh <- 1
+		}),
+		widget.NewButton("||", func() {
+			display.StepInstruction = true
+			display.StepFrame = false
+		}),
+		widget.NewButton("->", func() {
+			display.StepInstruction = false
+			display.StepFrame = false
+			display.NextCh <- 1
+		}),
+	))
 	//mainWindow.SetFixedSize(true)
 	return display
 }
@@ -50,7 +77,7 @@ func (p *NesDiplay) render() fyne.CanvasObject {
 			for x := 0; x < w; x++ {
 				//img.Set(x,y, color.RGBA{byte(rnd.Int()), byte(rnd.Int()), byte(rnd.Int()), 0xff})
 				pixel := p.screenPixels[y*SCREEN_HEIGHT/h][x*SCREEN_WIDTH/w]
-				img.Set(x, y, color.RGBA{R: byte(pixel >> 24), G: byte(pixel >> 16), B: byte(pixel >> 8), A: 0xff})
+				img.Set(x, y, color.RGBA{R: byte(pixel >> 16), G: byte(pixel >> 8), B: byte(pixel >> 0), A: 0xff})
 			}
 		}
 		return img

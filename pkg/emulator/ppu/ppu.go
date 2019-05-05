@@ -2,6 +2,7 @@ package ppu
 
 import (
 	logger2 "github.com/vfreex/gones/pkg/emulator/common/logger"
+	"github.com/vfreex/gones/pkg/emulator/cpu"
 	"github.com/vfreex/gones/pkg/emulator/memory"
 )
 
@@ -11,21 +12,25 @@ const (
 )
 
 type PPUImpl struct {
-	registers Registers
-	SprRam    SprRam
-	vram      memory.AddressSpace
-	Palette   Palette
-	cycles    int64
-	Frames    int64
+	cpu            *cpu.Cpu
+	registers      Registers
+	SprRam         SprRam
+	vram           memory.AddressSpace
+	Palette        Palette
+	//cycles         int64
+	//Frames         int64
 	RenderedBuffer [SCREEN_HEIGHT][SCREEN_WIDTH]RBGColor
+	scanline       int
+	dotInScanline  int
+	frame          int
 }
-
 
 var logger = logger2.GetLogger()
 
-func NewPPU(vram memory.AddressSpace) *PPUImpl {
+func NewPPU(vram memory.AddressSpace, cpu *cpu.Cpu) *PPUImpl {
 	ppu := &PPUImpl{
 		vram: vram,
+		cpu:  cpu,
 	}
 	ppu.registers = NewPPURegisters(ppu)
 	return ppu

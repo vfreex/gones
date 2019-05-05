@@ -4,6 +4,7 @@ import (
 	"github.com/golang/glog"
 	pkgLogger "github.com/vfreex/gones/pkg/emulator/common/logger"
 	"github.com/vfreex/gones/pkg/emulator/cpu"
+	"github.com/vfreex/gones/pkg/emulator/joypad"
 	"github.com/vfreex/gones/pkg/emulator/memory"
 	"github.com/vfreex/gones/pkg/emulator/ppu"
 	"github.com/vfreex/gones/pkg/emulator/ram"
@@ -31,17 +32,19 @@ type NESImpl struct {
 	ppuAS   memory.AddressSpace
 	vram    memory.Memory
 	display *NesDiplay
+	joypads *joypad.Joypads
 }
 
 func NewNes() NES {
 	nes := &NESImpl{
-		cpuAS: &memory.AddressSpaceImpl{},
-		ram:   ram.NewMainRAM(),
-		ppuAS: &memory.AddressSpaceImpl{},
-		vram:  ram.NewRAM(0x800),
+		cpuAS:   &memory.AddressSpaceImpl{},
+		ram:     ram.NewMainRAM(),
+		ppuAS:   &memory.AddressSpaceImpl{},
+		vram:    ram.NewRAM(0x800),
+		joypads: joypad.NewJoypads(),
 	}
 	nes.cpu = cpu.NewCpu(nes.cpuAS)
-	nes.ppu = ppu.NewPPU(nes.ppuAS)
+	nes.ppu = ppu.NewPPU(nes.ppuAS, nes.cpu)
 	nes.display = NewDisplay(&nes.ppu.RenderedBuffer)
 
 	// setting up CPU memory map
@@ -57,10 +60,12 @@ func NewNes() NES {
 		memory.NewOamDma(nes.cpuAS, &nes.ppu.SprRam), nil)
 	nes.ppu.MapToCPUAddressSpace(nes.cpuAS)
 	// fake memory map range
-	nes.cpuAS.AddMapping(0x4015, 0x3, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
-		ram.NewRAM(0x03), func(addr memory.Ptr) memory.Ptr {
+	nes.cpuAS.AddMapping(0x4015, 1, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
+		ram.NewRAM(0x01), func(addr memory.Ptr) memory.Ptr {
 			return addr - 0x4015
 		})
+	nes.cpuAS.AddMapping(0x4016, 2, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
+		nes.joypads, nil)
 
 	// setting up PPU memory map
 	// https://wiki.nesdev.com/w/index.php/PPU_memory_map
@@ -68,7 +73,7 @@ func NewNes() NES {
 		nes.vram, func(addr memory.Ptr) memory.Ptr {
 			return (addr - 0x2000) & 0xf7ff
 		})
-	nes.ppuAS.AddMapping(0x3F00, 0x20,
+	nes.ppuAS.AddMapping(0x3F00, 0x100,
 		memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE, &nes.ppu.Palette, nil)
 
 	return nes
@@ -76,18 +81,12 @@ func NewNes() NES {
 
 func (nes *NESImpl) LoadCartridge(cartridge *ines.INesRom) error {
 	// load PRG-ROM
-	nes.cpuAS.AddMapping(0x8000, 0x8000, memory.MMAP_MODE_READ,
+	nes.cpuAS.AddMapping(0x4020, 0xbfe0, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
 		cartridge.Prg, nil)
 
-	// load CHR-ROM
-	if len(cartridge.Chr) > 0 {
-		nes.ppuAS.AddMapping(0, 0x2000, memory.MMAP_MODE_READ,
-			cartridge.Chr, nil)
-	} else {
-		nes.ppuAS.AddMapping(0, 0x2000, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
-			cartridge.ChrRam, nil)
-	}
-
+	// load CHR-ROM/CHR-RAM
+	nes.ppuAS.AddMapping(0, 0x2000, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
+		cartridge.Chr, nil)
 	return nil
 }
 
@@ -95,7 +94,7 @@ func (nes *NESImpl) Start() error {
 	nes.cpuAS.Map()
 	nes.ppuAS.Map()
 
-	const fps = 1
+	const fps = 60
 	interval := 1 * time.Second / fps
 	cpuCyclesPerFrame := 29780
 	nes.ticker = time.NewTicker(interval)
@@ -107,6 +106,7 @@ func (nes *NESImpl) Start() error {
 	//out := bufio.NewWriter(os.Stdout)
 
 	//stopCh := make(chan interface{})
+	frames := 0
 	go func() {
 		for tick := range nes.ticker.C {
 			//tick:=time.Now()
@@ -115,32 +115,42 @@ func (nes *NESImpl) Start() error {
 			//logger.SetOutput(devnull)
 			loop := 0
 			for spentCycles < int64(cpuCyclesPerFrame) {
+				if nes.display.StepInstruction {
+					<-nes.display.NextCh
+				}
 				cycles := int64(cpu.ExecOneInstruction())
 				//cycles := int64(1)
 				if cycles <= 0 {
 					panic("invalid cycle")
 				}
-				//for pp := int64(0); pp < spentCycles*3; pp++ {
-				//	nes.ppu.Render()
-				//}
+				for pp := int64(0); pp < cycles*3; pp++ {
+					nes.ppu.Render()
+				}
 				spentCycles += cycles
 				loop++
 				//logger.Debug("")
 				//logger.Infof("spent %d/%d CPU cycles", spentCycles, cpuCyclesPerFrame)
 			}
-			nes.ppu.RenderFrame()
+			//nes.ppu.RenderFrame()
 			nes.display.Refresh()
-			nes.cpu.NMI()
-			nes.ppu.Frames++
+			if frames&1 != 0 {
+				nes.joypads.Joypads[0].Buttons |= joypad.Button_A
+			} else {
+				nes.joypads.Joypads[0].Buttons &= joypad.Button_A
+			}
 			//logger.SetOutput(os.Stderr)
 			logger.Info("----------------------------------------------------------")
 			now := time.Now()
 			actualTime := now.Sub(tick)
-			logger.Infof("spent %v/%v to render this frame after running %v loops / %v cycles",
-				actualTime, interval, loop, spentCycles)
+			logger.Infof("spent %v/%v to render frame #%d after running %v loops / %v cycles",
+				actualTime, interval, frames, loop, spentCycles)
+			frames++
 			//glog.Infof("realtime CPU clock rate: %v", spentCycles/int64(actualTime/time.Second))
 			//nes.ticker.Stop()
 			//close(stopCh)
+			if nes.display.StepFrame {
+				<-nes.display.NextCh
+			}
 		}
 	}()
 	nes.display.Show()

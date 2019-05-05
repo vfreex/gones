@@ -25,8 +25,8 @@ type ZapLogger struct {
 }
 
 func NewLogger() *ZapLogger {
-	logger, _ := zap.NewDevelopment()
-	//logger, _ := zap.NewProduction()
+	//logger, _ := zap.NewDevelopment()
+	logger, _ := zap.NewProduction()
 	return &ZapLogger{
 		logger: logger,
 		suger:  logger.Sugar(),
@@ -63,4 +63,8 @@ func (l *ZapLogger) Fatal(msg string) {
 
 func (l *ZapLogger) Fatalf(msg string, args ...interface{}) {
 	l.suger.Fatalf(msg, args...)
+}
+
+func (l *ZapLogger) Sync() {
+	l.logger.Sync()
 }

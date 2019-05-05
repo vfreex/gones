@@ -665,7 +665,9 @@ func (cpu *Cpu) ExecBRK(operandAddr memory.Ptr) int {
 func (cpu *Cpu) ExecRTI(operandAddr memory.Ptr) int {
 	logger.Debug(";; Exec RTI")
 	cpu.P = ProcessorStatus(cpu.Pop())
+	logger.Debugf(";; before jump: PC=%2x", cpu.PC)
 	cpu.PC = cpu.PopW()
+	logger.Debugf(";; jump to PC=%2x", cpu.PC)
 	return 5
 }
 
