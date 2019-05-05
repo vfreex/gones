@@ -32,7 +32,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/vfreex/gones/pkg/emulator/memory"
-	"github.com/vfreex/gones/pkg/emulator/ram"
+	"github.com/vfreex/gones/pkg/emulator/rom/mappers"
 	"io"
 )
 
@@ -70,16 +70,13 @@ type INesHeader struct {
 	_          [6]byte
 }
 
-type INesPrgRom []byte
-type INesChrRom []byte
-
 type INesRom struct {
 	Header  INesHeader
 	Trainer []byte
-	Prg     INesPrgRom
-	Chr     INesChrRom
+	Prg     memory.Memory
+	Chr     memory.Memory
 	Extra   []byte
-	ChrRam  *ram.RAM
+	Mapper  mappers.Mapper
 }
 
 func NewINesRom(reader io.Reader) (*INesRom, error) {
@@ -92,10 +89,6 @@ func NewINesRom(reader io.Reader) (*INesRom, error) {
 		return rom, fmt.Errorf("no valid header is found")
 	}
 
-	if header.GetMapperType() != 0 {
-		return rom, fmt.Errorf("unsupported Mapper type: %d", header.GetMapperType())
-	}
-
 	if header.Flags6&FLAGS6_TRAINER_ON != 0 {
 		rom.Trainer = make([]byte, TRAINER_SIZE)
 		if _, err := reader.Read(rom.Trainer); err != nil {
@@ -103,19 +96,31 @@ func NewINesRom(reader io.Reader) (*INesRom, error) {
 		}
 	}
 
-	rom.Prg = make([]byte, PRG_BANK_SIZE*int(header.PrgSize))
-	if _, err := reader.Read(rom.Prg); err != nil {
+	prgBin := make([]byte, PRG_BANK_SIZE*int(header.PrgSize))
+	if _, err := reader.Read(prgBin); err != nil {
 		return rom, err
 	}
 
+	var chrBin []byte
+
 	if header.ChrSize > 0 {
-		rom.Chr = make([]byte, CHR_BANK_SIZE*int(header.ChrSize))
-		if _, err := reader.Read(rom.Chr); err != nil {
+		chrBin = make([]byte, CHR_BANK_SIZE*int(header.ChrSize))
+		if _, err := reader.Read(chrBin); err != nil {
 			return rom, err
 		}
-	} else {
-		rom.ChrRam = ram.NewRAM(CHR_BANK_SIZE)
 	}
+
+	switch header.GetMapperType() {
+	case 0:
+		rom.Mapper = mappers.NewMapper00(prgBin, chrBin)
+	case 3:
+		rom.Mapper = mappers.NewMapper03(prgBin, chrBin)
+	default:
+		return rom, fmt.Errorf("unsupported Mapper type: %d", header.GetMapperType())
+	}
+
+	rom.Prg, rom.Chr = rom.Mapper.Map()
+
 	extra := &bytes.Buffer{}
 	if _, err := io.Copy(extra, reader); err != nil {
 		return rom, err
@@ -124,7 +129,7 @@ func NewINesRom(reader io.Reader) (*INesRom, error) {
 	return rom, nil
 }
 func (p *INesRom) String() string {
-	return fmt.Sprintf("iNESRom{header: %v, trainer: %d, PRG: %d, CHR: %d, EXTRA: %d}", &p.Header, len(p.Trainer), len(p.Prg), len(p.Chr), len(p.Extra))
+	return fmt.Sprintf("iNESRom{header: %v, trainer: %d, PRG: %d, CHR: %d, EXTRA: %d}", &p.Header, len(p.Trainer), p.Header.PrgSize, p.Header.ChrSize, len(p.Extra))
 }
 func (p *INesRom) MatchesFileMagic(reader io.Reader) (bool, error) {
 	magic := make([]byte, 4)
@@ -151,30 +156,4 @@ func (h *INesHeader) String() string {
 }
 func (h *INesHeader) GetMapperType() int {
 	return int((h.Flags7 & 0xF0) | (h.Flags6 >> 4))
-}
-
-func (p INesPrgRom) Peek(addr memory.Ptr) byte {
-	if addr < 0x8000 {
-		panic(fmt.Errorf("invalid ROM address 0x%x", addr))
-	}
-	if len(p) > PRG_BANK_SIZE {
-		return p[addr-0x8000]
-	} else {
-		return p[(addr-0x8000)&0xbfff]
-	}
-}
-
-func (p INesPrgRom) Poke(addr memory.Ptr, val byte) {
-	panic(fmt.Errorf("trying to write to ROM at address 0x%x", addr))
-}
-
-func (p INesChrRom) Peek(addr memory.Ptr) byte {
-	if addr > memory.Ptr(len(p)) {
-		panic(fmt.Errorf("invalid ROM address 0x%x", addr))
-	}
-	return p[addr]
-}
-
-func (p INesChrRom) Poke(addr memory.Ptr, val byte) {
-	panic(fmt.Errorf("not implemented"))
 }
