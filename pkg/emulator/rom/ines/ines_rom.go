@@ -113,6 +113,8 @@ func NewINesRom(reader io.Reader) (*INesRom, error) {
 	switch header.GetMapperType() {
 	case 0:
 		rom.Mapper = mappers.NewMapper00(prgBin, chrBin)
+	case 1:
+		rom.Mapper = mappers.NewMapper01(prgBin, chrBin)
 	case 3:
 		rom.Mapper = mappers.NewMapper03(prgBin, chrBin)
 	default:

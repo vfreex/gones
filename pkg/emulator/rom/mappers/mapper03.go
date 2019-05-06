@@ -71,8 +71,8 @@ func (p *Mapper03ChrRom) Peek(addr memory.Ptr) byte {
 	if addr >= 0x2000 {
 		panic(fmt.Errorf("mapper 03 Character ROM address 0x%x is not readable", addr))
 	}
-	newBank := memory.Ptr(p.mapper.bankSelectRegister)
-	return p.bin[newBank * ChrBankSize | addr]
+	newBank := int(p.mapper.bankSelectRegister)
+	return p.bin[newBank * ChrBankSize | int(addr)]
 }
 
 func (*Mapper03ChrRom) Poke(addr memory.Ptr, val byte) {
