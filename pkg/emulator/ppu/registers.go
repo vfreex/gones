@@ -133,7 +133,8 @@ func (p *Registers) Peek(addr memory.Ptr) byte {
 			p.latchCache = p.ppu.vram.Peek(p.vramAddr)
 		} else {
 			// reading from Palette memory VRAM 3F00h-3FFFh does directly access the desired address.
-			r = p.ppu.vram.Peek(p.vramAddr)
+			p.latchCache = p.ppu.vram.Peek(p.vramAddr) // cache should also be updated
+			r = p.latchCache
 		}
 		// The PPU will auto-increment the VRAM address (selected via Port 2006h)
 		// after each read/write from/to Port 2007h by 1 or 32 (depending on Bit2 of $2000).

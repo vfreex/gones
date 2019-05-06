@@ -42,7 +42,9 @@ func NewPPU(vram memory.AddressSpace, cpu *cpu.Cpu) *PPUImpl {
 
 func (ppu *PPUImpl) MapToCPUAddressSpace(as memory.AddressSpace) {
 	as.AddMapping(0x2000, 0x2000,
-		memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE, &ppu.registers, nil)
+		memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE, &ppu.registers, func(addr memory.Ptr) memory.Ptr {
+			return addr & 0x2007
+		})
 	as.AddMapping(0x4014, 1,
 		memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE, &ppu.registers, nil)
 }
