@@ -13,6 +13,11 @@ var logger = logger2.GetLogger()
 func main() {
 	var fileName string
 
+	fileName = "/Users/vfreex/Documents/hack/NES/tests/nes-test-roms/cpu_reset/ram_after_reset.nes" // passed
+	fileName = "/Users/vfreex/Documents/hack/NES/tests/nes-test-roms/cpu_reset/registers.nes" // passed
+
+	//fileName = "/Users/vfreex/Documents/hack/NES/tests/nes-test-roms/instr_misc/instr_misc.nes"
+
 	fileName = "/Users/vfreex/Documents/hack/NES/tests/nes-test-roms/blargg_nes_cpu_test5/official.nes"
 
 	//fileName = "/Users/vfreex/Downloads/nestests/blargg_ppu_tests_2005.09.15b/sprite_ram.nes" // passed

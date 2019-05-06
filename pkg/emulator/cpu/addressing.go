@@ -14,7 +14,7 @@ func (cpu *Cpu) AddressOperand(am AddressingMode) (memory.Ptr, int) {
 	case ZP:
 		return cpu.AddressZP()
 	case ZPX:
-		return cpu.AddressZP()
+		return cpu.AddressZPX()
 	case ZPY:
 		return cpu.AddressZPY()
 	case ABS:
@@ -37,7 +37,7 @@ func (cpu *Cpu) AddressOperand(am AddressingMode) (memory.Ptr, int) {
 }
 
 func isCrossPage(addr memory.Ptr, offset uint8) bool {
-	return addr&0xff00 != (addr+memory.Ptr(offset))&0xff00
+	return addr&0xff00 != (addr-memory.Ptr(offset))&0xff00
 }
 
 func (cpu *Cpu) AddressImm() (memory.Ptr, int) {
