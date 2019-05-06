@@ -69,6 +69,11 @@ func NewDisplay(screenPixels *[SCREEN_HEIGHT][SCREEN_WIDTH]ppu.RBGColor) *NesDip
 					display.StepFrame = false
 					display.NextCh <- 1
 				}),
+				widget.NewButton("RESET", func() {
+					display.StepInstruction = true
+					display.StepFrame = false
+					display.NextCh <- 0xff
+				}),
 			),
 			widget.NewHBox(
 				widget.NewButton("<-", func() {

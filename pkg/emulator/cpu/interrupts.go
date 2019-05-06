@@ -23,7 +23,7 @@ func (cpu *Cpu) Reset() {
 	cpu.SP -= 3
 	cpu.P.Set(PFLAG_I, true)
 	cpu.PC = cpu.ReadInterruptVector(IV_RESET)
-	logger.Debugf("Entrypoint: PC=$%4x", cpu.PC)
+	logger.Debugf("go to: PC=$%4x", cpu.PC)
 	// TODO: APU was silenced ($4015 = 0)
 }
 

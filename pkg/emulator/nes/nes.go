@@ -107,8 +107,7 @@ func (nes *NESImpl) Start() error {
 	cpuCyclesPerFrame := 29780
 	nes.ticker = time.NewTicker(interval)
 	cpu := nes.cpu
-	cpu.Init()
-	cpu.Reset()
+	cpu.PowerUp()
 
 	//runtime.LockOSThread()
 	//out := bufio.NewWriter(os.Stdout)
@@ -124,7 +123,11 @@ func (nes *NESImpl) Start() error {
 			loop := 0
 			for spentCycles < int64(cpuCyclesPerFrame) {
 				if nes.display.StepInstruction {
-					<-nes.display.NextCh
+					ch := <-nes.display.NextCh
+					if ch == 0xff {
+						nes.cpu.Reset()
+						// TODO: also reset PPU?
+					}
 				}
 				cycles := int64(cpu.ExecOneInstruction())
 				//cycles := int64(1)
@@ -160,7 +163,11 @@ func (nes *NESImpl) Start() error {
 			//nes.ticker.Stop()
 			//close(stopCh)
 			if nes.display.StepFrame {
-				<-nes.display.NextCh
+				ch := <-nes.display.NextCh
+				if ch == 0xff {
+					nes.cpu.Reset()
+					// TODO: also reset PPU?
+				}
 			}
 		}
 	}()

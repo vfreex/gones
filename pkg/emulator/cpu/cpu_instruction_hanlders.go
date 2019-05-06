@@ -444,7 +444,7 @@ func (cpu *Cpu) ExecPLP(operandAddr memory.Ptr) int {
 
 func (cpu *Cpu) ExecPHP(operandAddr memory.Ptr) int {
 	logger.Debug(";; Exec PHP")
-	cpu.Push(byte(cpu.P | PFLAG_B))
+	cpu.Push(byte(cpu.P | PFLAG_B | PFLAG_UNUSED))
 	return 2
 }
 

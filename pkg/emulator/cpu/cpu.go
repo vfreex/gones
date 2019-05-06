@@ -29,11 +29,10 @@ var logger = logger2.GetLogger()
 
 func NewCpu(memory memory.Memory) *Cpu {
 	cpu := &Cpu{Memory: memory}
-	cpu.Init()
 	return cpu
 }
 
-func (cpu *Cpu) Init() {
+func (cpu *Cpu) PowerUp() {
 	/*
 		P = $34[1] (IRQ disabled)[2]
 		A, X, Y = 0
@@ -47,7 +46,9 @@ func (cpu *Cpu) Init() {
 	*/
 	cpu.P = 0x34
 	cpu.A, cpu.X, cpu.Y = 0, 0, 0
-	cpu.SP = 0
+	cpu.SP = 0xfd
+	cpu.PC = cpu.ReadInterruptVector(IV_RESET)
+	logger.Debugf("entrypoint: PC=$%4x", cpu.PC)
 }
 
 func (cpu *Cpu) Test() {
