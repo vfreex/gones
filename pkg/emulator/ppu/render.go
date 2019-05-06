@@ -79,7 +79,7 @@ func (ppu *PPUImpl) renderSprites() {
 		spriteCount := 0
 		ppu.registers.status &= ^PPUStatus_SpriteOverflow
 		for spriteIndex := 0; spriteIndex < 64; spriteIndex++ {
-			lineInSprite := y - int(ppu.SprRam.Peek(memory.Ptr(spriteIndex*4))+1)
+			lineInSprite := y - int(ppu.SprRam.Peek(memory.Ptr(spriteIndex*4)))
 			// TODO: support 8*16 sprite
 			if lineInSprite < 0 {
 				continue
@@ -199,22 +199,29 @@ func (ppu *PPUImpl) DrawPixel() {
 			if x == 0 {
 				ppu.spriteShown = 0
 			}
-			for spriteIndex := 0; spriteIndex < ppu.spriteCount; spriteIndex++ {
+			// TODO: sprite 0 hit flag, clipping, etc
+			for spriteIndex := ppu.spriteCount - 1; spriteIndex >= 0; spriteIndex-- {
 				spriteX := x - int(ppu.secondaryOAM.Peek(memory.Ptr(spriteIndex*4+3)))
+				attr := SpriteAttr(ppu.secondaryOAM.Peek(memory.Ptr(spriteIndex*4 + 2)))
+				if attr&SpriteAttr_HorizontalFlip != 0 {
+					spriteX ^= 7
+				}
 				if spriteX < 0 || spriteX >= 8 {
 					continue
 				}
-				spriteY := y - int(ppu.secondaryOAM.Peek(memory.Ptr(spriteIndex*4))+1)
-				if spriteY < 0 {
-					continue
-				}
+				spriteY := y - int(ppu.secondaryOAM.Peek(memory.Ptr(spriteIndex*4)))
+				//if spriteY < 0 {
+				//	continue
+				//}
 				tileId := ppu.secondaryOAM.Peek(memory.Ptr(spriteIndex*4 + 1))
-				attr := SpriteAttr(ppu.secondaryOAM.Peek(memory.Ptr(spriteIndex*4 + 2)))
 				patternEntryAddr := memory.Ptr(0)
 				if ppu.registers.ctrl&PPUCtrl_SpriteSize == 0 {
 					// 8*8
-					if spriteY >= 8 {
-						continue
+					//if spriteY >= 8 {
+					//	continue
+					//}
+					if attr&SpriteAttr_VerticalFlip != 0 {
+						spriteY ^= 7
 					}
 					if ppu.registers.ctrl&PPUCtrl_SpritePatternTable != 0 {
 						patternEntryAddr = 0x1000
@@ -222,8 +229,11 @@ func (ppu *PPUImpl) DrawPixel() {
 					patternEntryAddr |= memory.Ptr(tileId) * 16
 				} else {
 					// 8*16
-					if spriteY >= 16 {
-						continue
+					//if spriteY >= 16 {
+					//	continue
+					//}
+					if attr&SpriteAttr_VerticalFlip != 0 {
+						spriteY ^= 15
 					}
 					if tileId&1 != 0 {
 						patternEntryAddr = 0x1000
@@ -232,9 +242,9 @@ func (ppu *PPUImpl) DrawPixel() {
 				}
 				low := ppu.vram.Peek(patternEntryAddr + memory.Ptr(spriteY))
 				high := ppu.vram.Peek(patternEntryAddr + memory.Ptr(spriteY) + 8)
-				spritePalette := low>>byte(7-spriteX)&1 | high>>byte(7-spriteX)&1<<1 |
-					byte(attr&(SpriteAttr_PaletteLow|SpriteAttr_PaletteHigh))<<2
+				spritePalette := low>>byte(7-spriteX)&1 | high>>byte(7-spriteX)&1<<1
 				if spritePalette > 0 && (currentPalette == 0 || attr&SpriteAttr_BackgroundPriority == 0) {
+					spritePalette |= byte(attr&(SpriteAttr_PaletteLow|SpriteAttr_PaletteHigh)) << 2
 					currentPalette = spritePalette + 0x10
 					if spriteX == 0 {
 						ppu.spriteShown++
