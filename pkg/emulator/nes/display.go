@@ -31,6 +31,7 @@ type NesDiplay struct {
 	StepFrame       bool
 	PressedKeys     byte
 	ReleasedKeys    byte
+	img *image.RGBA
 }
 
 var rnd = rand.New(rand.NewSource(time.Now().Unix()))
@@ -117,16 +118,20 @@ func NewDisplay(screenPixels *[SCREEN_HEIGHT][SCREEN_WIDTH]ppu.RBGColor) *NesDip
 
 func (p *NesDiplay) render() fyne.CanvasObject {
 	//p.update()
+	lastW, lastH := 0, 0
 	p.raster = canvas.NewRaster(func(w, h int) image.Image {
-		img := image.NewRGBA(image.Rect(0, 0, w, h))
+		if p.img == nil || p.img.Rect.Size().X != lastW || p.img.Rect.Size().Y != lastH {
+			p.img = image.NewRGBA(image.Rect(0, 0, w, h))
+			lastW = w
+			lastH = h
+		}
 		for y := 0; y < h; y++ {
 			for x := 0; x < w; x++ {
-				//img.Set(x,y, color.RGBA{byte(rnd.Int()), byte(rnd.Int()), byte(rnd.Int()), 0xff})
 				pixel := p.screenPixels[y*SCREEN_HEIGHT/h][x*SCREEN_WIDTH/w]
-				img.Set(x, y, color.RGBA{R: byte(pixel >> 16), G: byte(pixel >> 8), B: byte(pixel >> 0), A: 0xff})
+				p.img.SetRGBA(x,y, color.RGBA{R: byte(pixel >> 16), G: byte(pixel >> 8), B: byte(pixel >> 0), A: 0xff})
 			}
 		}
-		return img
+		return p.img
 	})
 	p.raster.SetMinSize(fyne.NewSize(SCREEN_WIDTH, SCREEN_HEIGHT))
 	//p.raster.SetMinSize(fyne.NewSize(400, 300))
