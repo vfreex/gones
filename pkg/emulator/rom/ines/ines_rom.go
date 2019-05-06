@@ -126,6 +126,7 @@ func NewINesRom(reader io.Reader) (*INesRom, error) {
 		return rom, err
 	}
 	rom.Extra = extra.Bytes()
+
 	return rom, nil
 }
 func (p *INesRom) String() string {

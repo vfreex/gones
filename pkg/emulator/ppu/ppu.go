@@ -4,6 +4,7 @@ import (
 	logger2 "github.com/vfreex/gones/pkg/emulator/common/logger"
 	"github.com/vfreex/gones/pkg/emulator/cpu"
 	"github.com/vfreex/gones/pkg/emulator/memory"
+	"github.com/vfreex/gones/pkg/emulator/ram"
 )
 
 const (
@@ -12,25 +13,28 @@ const (
 )
 
 type PPUImpl struct {
-	cpu            *cpu.Cpu
-	registers      Registers
-	SprRam         SprRam
-	vram           memory.AddressSpace
-	Palette        Palette
+	cpu          *cpu.Cpu
+	registers    Registers
+	SprRam       SprRam
+	secondaryOAM *ram.RAM
+	vram         memory.AddressSpace
+	Palette      Palette
 	//cycles         int64
 	//Frames         int64
 	RenderedBuffer [SCREEN_HEIGHT][SCREEN_WIDTH]RBGColor
 	scanline       int
 	dotInScanline  int
 	frame          int
+	spriteCount,spriteShown    int
 }
 
 var logger = logger2.GetLogger()
 
 func NewPPU(vram memory.AddressSpace, cpu *cpu.Cpu) *PPUImpl {
 	ppu := &PPUImpl{
-		vram: vram,
-		cpu:  cpu,
+		vram:         vram,
+		cpu:          cpu,
+		secondaryOAM: ram.NewRAM(32),
 	}
 	ppu.registers = NewPPURegisters(ppu)
 	return ppu
@@ -38,5 +42,7 @@ func NewPPU(vram memory.AddressSpace, cpu *cpu.Cpu) *PPUImpl {
 
 func (ppu *PPUImpl) MapToCPUAddressSpace(as memory.AddressSpace) {
 	as.AddMapping(0x2000, 0x2000,
+		memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE, &ppu.registers, nil)
+	as.AddMapping(0x4014, 1,
 		memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE, &ppu.registers, nil)
 }

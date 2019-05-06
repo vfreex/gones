@@ -56,8 +56,8 @@ func NewNes() NES {
 		ram.NewRAM(0x14), func(addr memory.Ptr) memory.Ptr {
 			return addr - 0x4000
 		})
-	nes.cpuAS.AddMapping(0x4014, 1, memory.MMAP_MODE_WRITE,
-		memory.NewOamDma(nes.cpuAS, &nes.ppu.SprRam), nil)
+	//nes.cpuAS.AddMapping(0x4014, 1, memory.MMAP_MODE_WRITE,
+	//memory.NewOamDma(nes.cpuAS, &nes.ppu.SprRam), nil)
 	nes.ppu.MapToCPUAddressSpace(nes.cpuAS)
 	// fake memory map range
 	nes.cpuAS.AddMapping(0x4015, 1, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
@@ -69,10 +69,6 @@ func NewNes() NES {
 
 	// setting up PPU memory map
 	// https://wiki.nesdev.com/w/index.php/PPU_memory_map
-	nes.ppuAS.AddMapping(0x2000, 0x1000, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
-		nes.vram, func(addr memory.Ptr) memory.Ptr {
-			return (addr - 0x2000) & 0xf7ff
-		})
 	nes.ppuAS.AddMapping(0x3F00, 0x100,
 		memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE, &nes.ppu.Palette, nil)
 
@@ -87,6 +83,18 @@ func (nes *NESImpl) LoadCartridge(cartridge *ines.INesRom) error {
 	// load CHR-ROM/CHR-RAM
 	nes.ppuAS.AddMapping(0, 0x2000, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
 		cartridge.Chr, nil)
+	nes.ppuAS.AddMapping(0x2000, 0x1000, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
+		nes.vram, func(addr memory.Ptr) memory.Ptr {
+			//return (addr - 0x2000) & 0xf7ff
+			if cartridge.Header.Flags6 & ines.FLAGS6_FOUR_SCREEN_VRAM_ON != 0 {
+				// four-screen mirroring
+				return addr - 0x2000
+			} else if cartridge.Header.Flags6 & ines.FLAGS6_VERTICAL_MIRRORING != 0 {
+				return addr & 0x7ff
+			} else {
+				return addr / 2 & 0x400 | addr & 0x3ff
+			}
+		})
 	return nil
 }
 
@@ -134,9 +142,9 @@ func (nes *NESImpl) Start() error {
 			//nes.ppu.RenderFrame()
 			nes.display.Refresh()
 			if frames&1 != 0 {
-				nes.joypads.Joypads[0].Buttons |= joypad.Button_A
+				//nes.joypads.Joypads[0].Buttons |= joypad.Button_Start
 			} else {
-				nes.joypads.Joypads[0].Buttons &= joypad.Button_A
+				//nes.joypads.Joypads[0].Buttons = 0
 			}
 			//logger.SetOutput(os.Stderr)
 			logger.Info("----------------------------------------------------------")

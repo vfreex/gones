@@ -124,7 +124,7 @@ func (p *Registers) Peek(addr memory.Ptr) byte {
 		p.latch = false
 	case OAMDATA:
 		// The address is NOT auto-incremented after <reading> from 2004h.
-		return p.ppu.SprRam.data[p.oamAddr]
+		return p.ppu.SprRam.Peek(memory.Ptr(p.oamAddr))
 	case PPUDATA:
 		// Reading from VRAM 0000h-3EFFh loads the desired value into a latch,
 		// and returns the OLD content of the latch to the CPU
@@ -158,7 +158,7 @@ func (p *Registers) Poke(addr memory.Ptr, val byte) {
 		p.oamAddr = val
 	case OAMDATA:
 		// The Port 2003h address is auto-incremented by 1 after each <write> to 2004h.
-		p.ppu.SprRam.data[p.oamAddr] = val
+		p.ppu.SprRam.Poke(memory.Ptr(p.oamAddr), val)
 		p.oamAddr++
 	case PPUSCROLL:
 		if !p.latch {
