@@ -86,13 +86,13 @@ func (nes *NESImpl) LoadCartridge(cartridge *ines.INesRom) error {
 	nes.ppuAS.AddMapping(0x2000, 0x1000, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
 		nes.vram, func(addr memory.Ptr) memory.Ptr {
 			//return (addr - 0x2000) & 0xf7ff
-			if cartridge.Header.Flags6 & ines.FLAGS6_FOUR_SCREEN_VRAM_ON != 0 {
+			if cartridge.Header.Flags6&ines.FLAGS6_FOUR_SCREEN_VRAM_ON != 0 {
 				// four-screen mirroring
 				return addr - 0x2000
-			} else if cartridge.Header.Flags6 & ines.FLAGS6_VERTICAL_MIRRORING != 0 {
+			} else if cartridge.Header.Flags6&ines.FLAGS6_VERTICAL_MIRRORING != 0 {
 				return addr & 0x7ff
 			} else {
-				return addr / 2 & 0x400 | addr & 0x3ff
+				return addr/2&0x400 | addr&0x3ff
 			}
 		})
 	return nil
@@ -119,8 +119,8 @@ func (nes *NESImpl) Start() error {
 		for tick := range nes.ticker.C {
 			//tick:=time.Now()
 			glog.Infof("At time %v", tick)
+
 			spentCycles := int64(0)
-			//logger.SetOutput(devnull)
 			loop := 0
 			for spentCycles < int64(cpuCyclesPerFrame) {
 				if nes.display.StepInstruction {
@@ -139,12 +139,15 @@ func (nes *NESImpl) Start() error {
 				//logger.Debug("")
 				//logger.Infof("spent %d/%d CPU cycles", spentCycles, cpuCyclesPerFrame)
 			}
-			//nes.ppu.RenderFrame()
 			nes.display.Refresh()
-			if frames&1 != 0 {
-				//nes.joypads.Joypads[0].Buttons |= joypad.Button_Start
+			// update joypad
+			if frames&1 == 0 {
+				nes.joypads.Joypads[0].Buttons |= nes.display.PressedKeys
+				nes.display.PressedKeys = 0
 			} else {
-				//nes.joypads.Joypads[0].Buttons = 0
+				//nes.joypads.Joypads[0].Buttons &= ^nes.display.ReleasedKeys
+				nes.joypads.Joypads[0].Buttons = 0
+				//nes.display.ReleasedKeys = 0
 			}
 			//logger.SetOutput(os.Stderr)
 			logger.Info("----------------------------------------------------------")

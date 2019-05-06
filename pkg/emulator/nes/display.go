@@ -5,6 +5,7 @@ import (
 	"fyne.io/fyne/app"
 	"fyne.io/fyne/canvas"
 	"fyne.io/fyne/widget"
+	"github.com/vfreex/gones/pkg/emulator/joypad"
 	"github.com/vfreex/gones/pkg/emulator/ppu"
 	"image"
 	"image/color"
@@ -28,6 +29,8 @@ type NesDiplay struct {
 	NextCh          chan int
 	StepInstruction bool
 	StepFrame       bool
+	PressedKeys     byte
+	ReleasedKeys    byte
 }
 
 var rnd = rand.New(rand.NewSource(time.Now().Unix()))
@@ -37,34 +40,72 @@ func NewDisplay(screenPixels *[SCREEN_HEIGHT][SCREEN_WIDTH]ppu.RBGColor) *NesDip
 	app := app.New()
 	mainWindow := app.NewWindow("GoNES")
 	display := &NesDiplay{
-		app:          app,
-		mainWindow:   mainWindow,
-		screenPixels: screenPixels,
-		NextCh:       make(chan int, 1),
+		app:             app,
+		mainWindow:      mainWindow,
+		screenPixels:    screenPixels,
+		NextCh:          make(chan int, 1),
 		StepInstruction: true,
 	}
 	gameCanvas := display.render()
-	mainWindow.SetContent(widget.NewVBox(gameCanvas,
-		widget.NewButton(">", func() {
-			display.StepInstruction = true
-			display.StepFrame = false
-			display.NextCh <- 1
-		}),
-		widget.NewButton(">>", func() {
-			display.StepInstruction = false
-			display.StepFrame = true
-			display.NextCh <- 1
-		}),
-		widget.NewButton("||", func() {
-			display.StepInstruction = true
-			display.StepFrame = false
-		}),
-		widget.NewButton("->", func() {
-			display.StepInstruction = false
-			display.StepFrame = false
-			display.NextCh <- 1
-		}),
-	))
+	mainWindow.SetContent(
+		widget.NewVBox(gameCanvas,
+			widget.NewHBox(
+				widget.NewButton(">", func() {
+					display.StepInstruction = true
+					display.StepFrame = false
+					display.NextCh <- 1
+				}),
+				widget.NewButton(">>", func() {
+					display.StepInstruction = false
+					display.StepFrame = true
+					display.NextCh <- 1
+				}),
+				widget.NewButton("||", func() {
+					display.StepInstruction = true
+					display.StepFrame = false
+				}),
+				widget.NewButton("->", func() {
+					display.StepInstruction = false
+					display.StepFrame = false
+					display.NextCh <- 1
+				}),
+			),
+			widget.NewHBox(
+				widget.NewButton("<-", func() {
+					display.PressedKeys |= joypad.Button_Left
+					display.ReleasedKeys |= joypad.Button_Left
+				}),
+				widget.NewButton("^", func() {
+					display.PressedKeys |= joypad.Button_Up
+					display.ReleasedKeys |= joypad.Button_Up
+
+				}),
+				widget.NewButton("->", func() {
+					display.PressedKeys |= joypad.Button_Right
+					display.ReleasedKeys |= joypad.Button_Right
+				}),
+				widget.NewButton("V", func() {
+					display.PressedKeys |= joypad.Button_Down
+					display.ReleasedKeys |= joypad.Button_Down
+				}),
+				widget.NewButton("A", func() {
+					display.PressedKeys |= joypad.Button_A
+					display.ReleasedKeys |= joypad.Button_A
+				}),
+				widget.NewButton("B", func() {
+					display.PressedKeys |= joypad.Button_B
+					display.ReleasedKeys |= joypad.Button_B
+				}),
+				widget.NewButton("SELECT", func() {
+					display.PressedKeys |= joypad.Button_Select
+					display.ReleasedKeys |= joypad.Button_Select
+				}),
+				widget.NewButton("START", func() {
+					display.PressedKeys |= joypad.Button_Start
+					display.ReleasedKeys |= joypad.Button_Start
+				}),
+			),
+		))
 	//mainWindow.SetFixedSize(true)
 	return display
 }
