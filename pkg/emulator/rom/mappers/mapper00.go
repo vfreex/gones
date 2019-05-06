@@ -3,6 +3,7 @@ package mappers
 import (
 	"fmt"
 	"github.com/vfreex/gones/pkg/emulator/memory"
+	"github.com/vfreex/gones/pkg/emulator/ram"
 )
 
 type Mapper00 struct {
@@ -24,16 +25,22 @@ func NewMapper00(prgBin, chrBin []byte) *Mapper00 {
 		mapper.Chr.bin = make([]byte, ChrBankSize)
 		mapper.Chr.isRam = true
 	}
+	// TODO: allocate PRG-RAM on demand
+	mapper.Prg.PrgRam = ram.NewRAM(0x2000)
 	return mapper
 }
 
 type Mapper00PrgRom struct {
-	bin []byte
+	bin    []byte
+	PrgRam *ram.RAM
 }
 
 func (p *Mapper00PrgRom) Peek(addr memory.Ptr) byte {
-	if addr < 0x8000 {
+	if addr < 0x6000 {
 		panic(fmt.Errorf("program trying to read from Mapper 03 via invalid ROM address 0x%x", addr))
+	}
+	if addr < 0x8000 {
+		return p.PrgRam.Peek(addr - 0x6000)
 	}
 	if len(p.bin) == 2*PrgBankSize {
 		return p.bin[addr-0x8000]
@@ -43,8 +50,12 @@ func (p *Mapper00PrgRom) Peek(addr memory.Ptr) byte {
 }
 
 func (p *Mapper00PrgRom) Poke(addr memory.Ptr, val byte) {
-	if addr < 0x8000 {
+	if addr < 0x6000 {
 		panic(fmt.Errorf("mapper 00 Program ROM address 0x%x is not writable", addr))
+	}
+	if addr < 0x8000 {
+		p.PrgRam.Poke(addr-0x6000, val)
+		return
 	}
 	panic(fmt.Errorf("mapper 00 Program ROM address 0x%x is not writable", addr))
 }

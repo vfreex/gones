@@ -35,7 +35,13 @@ func NewMapper01(prgBin, chrBin []byte) *Mapper01 {
 	mapper := &Mapper01{}
 	mapper.Prg.bin = prgBin
 	mapper.Prg.mapper = mapper
-	mapper.Chr.bin = chrBin
+	if len(chrBin) > 0 {
+		mapper.Chr.bin = chrBin
+	} else {
+		// cartridge use CHR-RAM rather than CHR-ROM
+		mapper.Chr.bin = make([]byte, ChrBankSize)
+		mapper.Chr.isRam = true
+	}
 	mapper.Chr.mapper = mapper
 	mapper.PrgRam = ram.NewRAM(0x2000)
 	mapper.Registers[0] = 0x0c
@@ -77,7 +83,7 @@ func (p *Mapper01PrgRom) Peek(addr memory.Ptr) byte {
 		// Switchable 16K Area at 8000h-BFFFh (via Register 3)
 		// And Fixed  16K Area at C000h-FFFFh (always last 16K)
 		if addr >= 0xc000 {
-			bank = 0x0f
+			bank = len(p.bin)/PrgBankSize - 1
 		}
 	}
 	physicalAddr := bank*PrgBankSize | offset
@@ -120,6 +126,7 @@ func (p *Mapper01PrgRom) Poke(addr memory.Ptr, val byte) {
 type Mapper01ChrRom struct {
 	bin    []byte
 	mapper *Mapper01
+	isRam  bool
 }
 
 func (p *Mapper01ChrRom) Peek(addr memory.Ptr) byte {
@@ -142,6 +149,12 @@ func (p *Mapper01ChrRom) Peek(addr memory.Ptr) byte {
 	}
 }
 
-func (*Mapper01ChrRom) Poke(addr memory.Ptr, val byte) {
-	panic(fmt.Errorf("mapper 01 Character ROM address 0x%x is not writable", addr))
+func (p *Mapper01ChrRom) Poke(addr memory.Ptr, val byte) {
+	if !p.isRam {
+		panic(fmt.Errorf("mapper 01 Character ROM address 0x%x is not writable", addr))
+	}
+	if addr >= 0x2000 {
+		panic(fmt.Errorf("mapper 01 Character RAM address 0x%x is not writable", addr))
+	}
+	p.bin[addr] = val
 }
