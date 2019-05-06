@@ -95,9 +95,11 @@ func (cpu *Cpu) AddressRel() (memory.Ptr, int) {
 func (cpu *Cpu) AddressInd() (memory.Ptr, int) {
 	addr, _ := cpu.AddressAbs()
 	low := cpu.Memory.Peek(addr)
-	high := cpu.Memory.Peek((addr + 1) & 0xff)
-	addr2 := memory.Ptr(high)<<8 | memory.Ptr(low)
-	return addr2, 4
+	// 6502 CPU bug
+	addr2 := addr&0xff00 | (addr+1)&0x00ff
+	high := cpu.Memory.Peek(addr2)
+	addr3 := memory.Ptr(high)<<8 | memory.Ptr(low)
+	return addr3, 4
 }
 
 func (cpu *Cpu) AddressIzx() (memory.Ptr, int) {
@@ -117,4 +119,3 @@ func (cpu *Cpu) AddressIzy() (memory.Ptr, int) {
 	}
 	return addr2 + memory.Ptr(cpu.Y), 3
 }
-

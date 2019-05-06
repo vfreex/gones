@@ -11,10 +11,14 @@ import (
 var logger = logger2.GetLogger()
 
 func main() {
-	fileName := "/Users/vfreex/Downloads/color_test.nes"
-	//fileName := "/Users/vfreex/Documents/hack/NES/roms/Donkey Kong Classics (U) .nes"
-	//fileName := "/Users/vfreex/Documents/hack/NES/tests/branch_timing_tests/1.Branch_Basics.nes"
-	//fileName := "/Users/vfreex/Documents/hack/NES/NES_Dev_01/ctnes.nes"
+	var fileName string
+
+	fileName = "/Users/vfreex/Documents/hack/NES/tests/nes-test-roms/blargg_nes_cpu_test5/official.nes"
+
+	//fileName = "/Users/vfreex/Downloads/nestests/blargg_ppu_tests_2005.09.15b/sprite_ram.nes" // passed
+	//fileName = "/Users/vfreex/Downloads/nestests/blargg_ppu_tests_2005.09.15b/palette_ram.nes" // passed
+	//fileName = "/Users/vfreex/Downloads/nestests/blargg_ppu_tests_2005.09.15b/vram_access.nes" // failed
+
 	flag.Parse()
 	if flag.NArg() > 1 {
 		fileName = flag.Arg(0)
