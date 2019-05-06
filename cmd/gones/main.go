@@ -18,7 +18,11 @@ func main() {
 
 	//fileName = "/Users/vfreex/Documents/hack/NES/tests/nes-test-roms/instr_misc/instr_misc.nes"
 
-	fileName = "/Users/vfreex/Documents/hack/NES/tests/nes-test-roms/blargg_nes_cpu_test5/official.nes"
+	fileName = "/Users/vfreex/Documents/hack/NES/tests/nes-test-roms/blargg_nes_cpu_test5/official.nes" // passed
+	// fileName = "/Users/vfreex/Documents/hack/NES/tests/nes-test-roms/blargg_nes_cpu_test5/cpu.nes" // illegal opcode
+
+	fileName = "/Users/vfreex/Documents/hack/NES/tests/nes-test-roms/blargg_ppu_tests_2005.09.15b/palette_ram.nes" // passed
+	//fileName = "/Users/vfreex/Documents/hack/NES/tests/nes-test-roms/blargg_ppu_tests_2005.09.15b/power_up_palette.nes"
 
 	//fileName = "/Users/vfreex/Downloads/nestests/blargg_ppu_tests_2005.09.15b/sprite_ram.nes" // passed
 	//fileName = "/Users/vfreex/Downloads/nestests/blargg_ppu_tests_2005.09.15b/palette_ram.nes" // passed
