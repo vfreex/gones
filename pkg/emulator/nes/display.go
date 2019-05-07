@@ -4,6 +4,7 @@ import (
 	"fyne.io/fyne"
 	"fyne.io/fyne/app"
 	"fyne.io/fyne/canvas"
+	"fyne.io/fyne/driver/desktop"
 	"fyne.io/fyne/widget"
 	"github.com/vfreex/gones/pkg/emulator/joypad"
 	"github.com/vfreex/gones/pkg/emulator/ppu"
@@ -31,7 +32,8 @@ type NesDiplay struct {
 	StepFrame       bool
 	PressedKeys     byte
 	ReleasedKeys    byte
-	img *image.RGBA
+	Keys            byte
+	img             *image.RGBA
 }
 
 var rnd = rand.New(rand.NewSource(time.Now().Unix()))
@@ -45,7 +47,7 @@ func NewDisplay(screenPixels *[SCREEN_HEIGHT][SCREEN_WIDTH]ppu.RBGColor) *NesDip
 		mainWindow:      mainWindow,
 		screenPixels:    screenPixels,
 		NextCh:          make(chan int, 1),
-		StepInstruction: true,
+		StepInstruction: false,
 	}
 	gameCanvas := display.render()
 	mainWindow.SetContent(
@@ -76,42 +78,63 @@ func NewDisplay(screenPixels *[SCREEN_HEIGHT][SCREEN_WIDTH]ppu.RBGColor) *NesDip
 					display.NextCh <- 0xff
 				}),
 			),
-			widget.NewHBox(
-				widget.NewButton("<-", func() {
-					display.PressedKeys |= joypad.Button_Left
-					display.ReleasedKeys |= joypad.Button_Left
-				}),
-				widget.NewButton("^", func() {
-					display.PressedKeys |= joypad.Button_Up
-					display.ReleasedKeys |= joypad.Button_Up
-
-				}),
-				widget.NewButton("->", func() {
-					display.PressedKeys |= joypad.Button_Right
-					display.ReleasedKeys |= joypad.Button_Right
-				}),
-				widget.NewButton("V", func() {
-					display.PressedKeys |= joypad.Button_Down
-					display.ReleasedKeys |= joypad.Button_Down
-				}),
-				widget.NewButton("A", func() {
-					display.PressedKeys |= joypad.Button_A
-					display.ReleasedKeys |= joypad.Button_A
-				}),
-				widget.NewButton("B", func() {
-					display.PressedKeys |= joypad.Button_B
-					display.ReleasedKeys |= joypad.Button_B
-				}),
-				widget.NewButton("SELECT", func() {
-					display.PressedKeys |= joypad.Button_Select
-					display.ReleasedKeys |= joypad.Button_Select
-				}),
-				widget.NewButton("START", func() {
-					display.PressedKeys |= joypad.Button_Start
-					display.ReleasedKeys |= joypad.Button_Start
-				}),
-			),
 		))
+	mainWindow.Canvas().(desktop.Canvas).SetOnKeyDown(func(event *fyne.KeyEvent) {
+		switch event.Name {
+		case fyne.KeyReturn:
+			display.Keys |= joypad.Button_Start
+		case fyne.KeyA:
+			fallthrough
+		case fyne.KeyLeft:
+			display.Keys |= joypad.Button_Left
+		case fyne.KeyW:
+			fallthrough
+		case fyne.KeyUp:
+			display.Keys |= joypad.Button_Up
+		case fyne.KeyD:
+			fallthrough
+		case fyne.KeyRight:
+			display.Keys |= joypad.Button_Right
+		case fyne.KeyS:
+			fallthrough
+		case fyne.KeyDown:
+			display.Keys |= joypad.Button_Down
+		case fyne.KeyZ:
+			display.Keys |= joypad.Button_B
+		case fyne.KeyX:
+			display.Keys |= joypad.Button_A
+		case "LeftControl":
+			display.Keys |= joypad.Button_Select
+		}
+	})
+	mainWindow.Canvas().(desktop.Canvas).SetOnKeyUp(func(event *fyne.KeyEvent) {
+		switch event.Name {
+		case fyne.KeyReturn:
+			display.Keys &= ^joypad.Button_Start
+		case fyne.KeyA:
+			fallthrough
+		case fyne.KeyLeft:
+			display.Keys &= ^ joypad.Button_Left
+		case fyne.KeyW:
+			fallthrough
+		case fyne.KeyUp:
+			display.Keys &= ^joypad.Button_Up
+		case fyne.KeyD:
+			fallthrough
+		case fyne.KeyRight:
+			display.Keys &= ^ joypad.Button_Right
+		case fyne.KeyS:
+			fallthrough
+		case fyne.KeyDown:
+			display.Keys &= ^joypad.Button_Down
+		case fyne.KeyZ:
+			display.Keys &= ^ joypad.Button_B
+		case fyne.KeyX:
+			display.Keys &= ^ joypad.Button_A
+		case "LeftControl":
+			display.Keys &= ^ joypad.Button_Select
+		}
+	})
 	//mainWindow.SetFixedSize(true)
 	return display
 }
@@ -128,7 +151,7 @@ func (p *NesDiplay) render() fyne.CanvasObject {
 		for y := 0; y < h; y++ {
 			for x := 0; x < w; x++ {
 				pixel := p.screenPixels[y*SCREEN_HEIGHT/h][x*SCREEN_WIDTH/w]
-				p.img.SetRGBA(x,y, color.RGBA{R: byte(pixel >> 16), G: byte(pixel >> 8), B: byte(pixel >> 0), A: 0xff})
+				p.img.SetRGBA(x, y, color.RGBA{R: byte(pixel >> 16), G: byte(pixel >> 8), B: byte(pixel >> 0), A: 0xff})
 			}
 		}
 		return p.img

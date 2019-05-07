@@ -109,10 +109,6 @@ func (nes *NESImpl) Start() error {
 	cpu := nes.cpu
 	cpu.PowerUp()
 
-	//runtime.LockOSThread()
-	//out := bufio.NewWriter(os.Stdout)
-
-	//stopCh := make(chan interface{})
 	frames := 0
 	go func() {
 		for tick := range nes.ticker.C {
@@ -144,14 +140,7 @@ func (nes *NESImpl) Start() error {
 			}
 			nes.display.Refresh()
 			// update joypad
-			if frames&1 == 0 {
-				nes.joypads.Joypads[0].Buttons |= nes.display.PressedKeys
-				nes.display.PressedKeys = 0
-			} else {
-				//nes.joypads.Joypads[0].Buttons &= ^nes.display.ReleasedKeys
-				nes.joypads.Joypads[0].Buttons = 0
-				//nes.display.ReleasedKeys = 0
-			}
+			nes.joypads.Joypads[0].Buttons = nes.display.Keys
 			//logger.SetOutput(os.Stderr)
 			logger.Info("----------------------------------------------------------")
 			now := time.Now()
