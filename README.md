@@ -17,7 +17,7 @@ A cross-platform and portable NES emulator written Go.
 
 ## Installation
 
-### Precompiled binaries
+### Prebuilt binaries
 Not available yet.
 
 ### Build from source
@@ -28,9 +28,13 @@ make
 
 ## Usage
 ### Start GoNES
+Run `gones` from terminal:
 ```sh
 gones <game>.nes
 ```
+
+Or if you are using GUI, just drag your `.NES` file to `gones` binary file.
+
 ## Default Keymap
 ### First Player
 | NES Key           | PC               | Mac          |
