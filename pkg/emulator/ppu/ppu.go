@@ -4,7 +4,6 @@ import (
 	logger2 "github.com/vfreex/gones/pkg/emulator/common/logger"
 	"github.com/vfreex/gones/pkg/emulator/cpu"
 	"github.com/vfreex/gones/pkg/emulator/memory"
-	"github.com/vfreex/gones/pkg/emulator/ram"
 )
 
 const (
@@ -16,16 +15,17 @@ type PPUImpl struct {
 	cpu          *cpu.Cpu
 	registers    Registers
 	SprRam       SprRam
-	secondaryOAM *ram.RAM
+	//secondaryOAM *ram.RAM
 	vram         memory.AddressSpace
 	Palette      Palette
 	//cycles         int64
 	//Frames         int64
-	RenderedBuffer [SCREEN_HEIGHT][SCREEN_WIDTH]RBGColor
-	scanline       int
-	dotInScanline  int
-	frame          int
-	spriteCount,spriteShown    int
+	RenderedBuffer           [SCREEN_HEIGHT][SCREEN_WIDTH]RBGColor
+	scanline                 int
+	dotInScanline            int
+	frame                    int
+	spriteCount, spriteShown int
+	sprites                  [8]Sprite
 }
 
 var logger = logger2.GetLogger()
@@ -34,7 +34,7 @@ func NewPPU(vram memory.AddressSpace, cpu *cpu.Cpu) *PPUImpl {
 	ppu := &PPUImpl{
 		vram:         vram,
 		cpu:          cpu,
-		secondaryOAM: ram.NewRAM(32),
+		//secondaryOAM: ram.NewRAM(32),
 	}
 	ppu.registers = NewPPURegisters(ppu)
 	return ppu

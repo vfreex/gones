@@ -64,49 +64,88 @@ func (ppu *PPUImpl) TestDisplay(scanlineId int, x int, colorId byte) {
 		ppu.RenderedBuffer[scanlineId][x] = RGBMap[color]
 	}
 }
+
 func (ppu *PPUImpl) renderSprites() {
 	// http://wiki.nesdev.com/w/index.php/PPU_sprite_evaluation
 	x := ppu.dotInScanline
 	y := ppu.scanline - 21
 	if x == 0 {
-		// Cycles 1-64: Secondary OAM (32-byte buffer for current sprites on scanline) is initialized to $FF
-		// TODO: attempting to read $2004 will return $FF
-		for i := 0; i < 32; i++ {
-			ppu.secondaryOAM.Poke(memory.Ptr(i), 0xff)
-		}
+		// TODO: Cycles 1-64: Secondary OAM (32-byte buffer for current sprites on scanline) is initialized to $FF,
+		//  attempting to read $2004 will return $FF
+		//for i := 0; i < 32; i++ {
+		//	ppu.secondaryOAM.Poke(memory.Ptr(i), 0xff)
+		//}
 		//} else if x == 1 {
 		// Sprite evaluation
-		spriteCount := 0
+		ppu.spriteCount = 0
 		ppu.registers.status &= ^PPUStatus_SpriteOverflow
 		for spriteIndex := 0; spriteIndex < 64; spriteIndex++ {
-			lineInSprite := y - int(ppu.SprRam.Peek(memory.Ptr(spriteIndex*4)))
-			// TODO: support 8*16 sprite
-			if lineInSprite < 0 {
-				continue
+			spriteY := int(ppu.SprRam.Peek(memory.Ptr(spriteIndex * 4)))
+			deltaY := y - spriteY
+			spriteHeight := 8
+			if ppu.registers.ctrl&PPUCtrl_SpriteSize != 0 {
+				spriteHeight = 16
 			}
-			if ppu.registers.ctrl&PPUCtrl_SpriteSize == 0 {
-				if lineInSprite >= 8 {
-					continue
-				}
-			} else if lineInSprite >= 16 {
+			if deltaY < 0 || deltaY >= spriteHeight {
+				// sprite is not in range
 				continue
 			}
 			// the sprite is in this scanline
-			if spriteCount >= 8 {
+			if ppu.spriteCount >= 8 {
 				// sprite overflow
-				// TODO: emulate hardware bug
+				// TODO: implement hardware bug
 				ppu.registers.status |= PPUStatus_SpriteOverflow
 				break
 			}
+
+			var spriteBytes [4]byte
 			for i := 0; i < 4; i++ {
-				toCopy := ppu.SprRam.Peek(memory.Ptr(spriteIndex*4 + i))
-				ppu.secondaryOAM.Poke(memory.Ptr(spriteCount*4+i), toCopy)
+				spriteBytes[i] = ppu.SprRam.Peek(memory.Ptr(spriteIndex*4 + i))
+				//ppu.secondaryOAM.Poke(memory.Ptr(spriteCount*4+i), toCopy)
 			}
-			spriteCount++
+			// evaluate sprite
+			sprite := &ppu.sprites[ppu.spriteCount]
+			sprite.Id = spriteIndex
+			sprite.Y = spriteY
+			sprite.TileId = int(ppu.SprRam.Peek(memory.Ptr(spriteIndex*4 + 1)))
+			sprite.X = int(ppu.SprRam.Peek(memory.Ptr(spriteIndex*4 + 3)))
+			sprite.Attr.Unmarshal(ppu.SprRam.Peek(memory.Ptr(spriteIndex*4 + 2)))
+			//sprite.Unmarshal(spriteIndex, &spriteBytes)
+
+			ppu.spriteCount++
 		}
-		ppu.spriteCount = spriteCount
-		if spriteCount > 0 {
-			logger.Debugf("renderSprites: Scanline #%d has %d sprites.", y, spriteCount)
+		if ppu.spriteCount > 0 {
+			logger.Debugf("renderSprites: Scanline #%d has %d sprites.", y, ppu.spriteCount)
+		}
+		// sprite fetches
+		for i := 0; i < ppu.spriteCount; i++ {
+			// load tile row to sprite
+			sprite := &ppu.sprites[i]
+			var addr memory.Ptr
+			var spriteHeight int
+			if ppu.registers.ctrl&PPUCtrl_SpriteSize == 0 {
+				// 8*8 sprite
+				spriteHeight = 8
+				if ppu.registers.ctrl&PPUCtrl_SpritePatternTable != 0 {
+					addr = 0x1000
+				}
+				addr += memory.Ptr(sprite.TileId * 16)
+			} else {
+				// 8 * 16 sprite
+				spriteHeight = 16
+				if sprite.TileId&1 != 0 {
+					addr = 0x1000
+				}
+				addr += memory.Ptr(sprite.TileId & ^1 * 16)
+			}
+			deltaY := y - sprite.Y
+			if sprite.Attr.VerticalFlip {
+				deltaY ^= spriteHeight - 1 // i.e. deltaY = spriteHeight - 1 - deltaY
+			}
+			addr += memory.Ptr(deltaY + deltaY&0x8) // if deltaY >=8, select the 3rd 8-byte
+
+			sprite.TileRowLow = ppu.vram.Peek(addr)
+			sprite.TileRowHigh = ppu.vram.Peek(addr + 8)
 		}
 	} else if x == 319 {
 		// Sprite fetches (8 sprites total, 8 cycles per sprite)
@@ -174,8 +213,8 @@ func (ppu *PPUImpl) DrawPixel() {
 	y := ppu.scanline - 21
 
 	if y >= 0 && y < SCREEN_HEIGHT && x >= 0 && x < SCREEN_WIDTH {
-		// Draw background
 		var currentPalette byte
+		// Draw background
 		if ppu.registers.mask&PPUMask_BackgroundVisibility != 0 {
 			tileId := y/8*32 + x/8
 			groupId := y/32*8 + x/32
@@ -187,11 +226,13 @@ func (ppu *PPUImpl) DrawPixel() {
 			patternId := ppu.ReadNameTableByte(memory.Ptr(tileId))
 			low := ppu.ReadPatternTableByte(memory.Ptr(patternId)*16 + memory.Ptr(offsetY))
 			high := ppu.ReadPatternTableByte(memory.Ptr(patternId)*16 + 8 + memory.Ptr(offsetY))
-			attr := ppu.ReadAttributeTableByte(memory.Ptr(groupId))
-			paletteId := attr >> (byte(field) * 2) & 3
-			palette := paletteId<<2 |
-				high>>byte(7-offsetX)&1<<1 | low>>byte(7-offsetX)&1
-			currentPalette = palette
+			currentPalette = high>>byte(7-offsetX)&1<<1 | low>>byte(7-offsetX)&1
+			if currentPalette > 0 {
+				// non-global background color
+				attr := ppu.ReadAttributeTableByte(memory.Ptr(groupId))
+				paletteId := attr >> (byte(field) * 2) & 3
+				currentPalette |= paletteId << 2
+			}
 		}
 		// Draw sprites
 		if ppu.registers.mask&PPUMask_SpriteVisibility != 0 {
@@ -200,56 +241,33 @@ func (ppu *PPUImpl) DrawPixel() {
 				ppu.spriteShown = 0
 			}
 			// TODO: sprite 0 hit flag, clipping, etc
-			for spriteIndex := ppu.spriteCount - 1; spriteIndex >= 0; spriteIndex-- {
-				spriteX := x - int(ppu.secondaryOAM.Peek(memory.Ptr(spriteIndex*4+3)))
-				attr := SpriteAttr(ppu.secondaryOAM.Peek(memory.Ptr(spriteIndex*4 + 2)))
-				if attr&SpriteAttr_HorizontalFlip != 0 {
-					spriteX ^= 7
-				}
-				if spriteX < 0 || spriteX >= 8 {
+			for spriteIndex := 0; spriteIndex < ppu.spriteCount; spriteIndex++ {
+				sprite := &ppu.sprites[spriteIndex]
+				deltaX := x - sprite.X
+				if deltaX < 0 || deltaX >= 8 {
+					// sprite is not in range
 					continue
 				}
-				spriteY := y - int(ppu.secondaryOAM.Peek(memory.Ptr(spriteIndex*4)))
-				//if spriteY < 0 {
-				//	continue
-				//}
-				tileId := ppu.secondaryOAM.Peek(memory.Ptr(spriteIndex*4 + 1))
-				patternEntryAddr := memory.Ptr(0)
-				if ppu.registers.ctrl&PPUCtrl_SpriteSize == 0 {
-					// 8*8
-					//if spriteY >= 8 {
-					//	continue
-					//}
-					if attr&SpriteAttr_VerticalFlip != 0 {
-						spriteY ^= 7
-					}
-					if ppu.registers.ctrl&PPUCtrl_SpritePatternTable != 0 {
-						patternEntryAddr = 0x1000
-					}
-					patternEntryAddr |= memory.Ptr(tileId) * 16
-				} else {
-					// 8*16
-					//if spriteY >= 16 {
-					//	continue
-					//}
-					if attr&SpriteAttr_VerticalFlip != 0 {
-						spriteY ^= 15
-					}
-					if tileId&1 != 0 {
-						patternEntryAddr = 0x1000
-					}
-					patternEntryAddr |= memory.Ptr(tileId&^1) * 16
+				if sprite.Attr.HorizontalFlip {
+					deltaX ^= 7 // i.e. delta = 7 - delta
 				}
-				low := ppu.vram.Peek(patternEntryAddr + memory.Ptr(spriteY))
-				high := ppu.vram.Peek(patternEntryAddr + memory.Ptr(spriteY) + 8)
-				spritePalette := low>>byte(7-spriteX)&1 | high>>byte(7-spriteX)&1<<1
-				if spritePalette > 0 && (currentPalette == 0 || attr&SpriteAttr_BackgroundPriority == 0) {
-					spritePalette |= byte(attr&(SpriteAttr_PaletteLow|SpriteAttr_PaletteHigh)) << 2
-					currentPalette = spritePalette + 0x10
-					if spriteX == 0 {
-						ppu.spriteShown++
-					}
+				colorLow := sprite.TileRowLow >> byte(7-deltaX) & 1
+				colorHigh := sprite.TileRowHigh >> byte(7-deltaX) & 1
+				spritePalette := byte(colorLow | colorHigh<<1)
+				if spritePalette == 0 {
+					// transparent pixel
+					continue
 				}
+				if currentPalette != 0 && sprite.Attr.BackgroundPriority {
+					// background pixel covers this sprite pixel
+					continue
+				}
+				spritePalette |= byte(sprite.Attr.PaletteId << 2)
+				currentPalette = spritePalette + 0x10
+				if deltaX == 0 {
+					ppu.spriteShown++
+				}
+				break
 			}
 			if x == SCREEN_WIDTH-1 {
 				if ppu.spriteCount > 0 {
@@ -257,9 +275,7 @@ func (ppu *PPUImpl) DrawPixel() {
 				}
 			}
 		}
-		//if currentPalette > 0 {
 		ppu.RenderedBuffer[y][x] = Color(ppu.Palette.Peek(0x3F00 + memory.Ptr(currentPalette))).ToGRBColor()
-		//}
 	}
 
 }
