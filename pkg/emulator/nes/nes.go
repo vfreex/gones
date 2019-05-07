@@ -1,7 +1,6 @@
 package nes
 
 import (
-	"github.com/golang/glog"
 	pkgLogger "github.com/vfreex/gones/pkg/emulator/common/logger"
 	"github.com/vfreex/gones/pkg/emulator/cpu"
 	"github.com/vfreex/gones/pkg/emulator/joypad"
@@ -113,7 +112,7 @@ func (nes *NESImpl) Start() error {
 	go func() {
 		for tick := range nes.ticker.C {
 			//tick:=time.Now()
-			glog.Infof("At time %v", tick)
+			logger.Infof("At time %v", tick)
 
 			spentCycles := int64(0)
 			loop := 0
@@ -148,7 +147,6 @@ func (nes *NESImpl) Start() error {
 			logger.Infof("spent %v/%v to render frame #%d after running %v loops / %v cycles",
 				actualTime, interval, frames, loop, spentCycles)
 			frames++
-			//glog.Infof("realtime CPU clock rate: %v", spentCycles/int64(actualTime/time.Second))
 			//nes.ticker.Stop()
 			//close(stopCh)
 			if nes.display.StepFrame {
