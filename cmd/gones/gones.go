@@ -6,6 +6,7 @@ import (
 	"github.com/vfreex/gones/pkg/emulator/nes"
 	"github.com/vfreex/gones/pkg/emulator/rom/ines"
 	"os"
+	"fmt"
 )
 
 var logger = logger2.GetLogger()
@@ -35,13 +36,19 @@ func main() {
 
 
 	flag.Parse()
-	if flag.NArg() > 1 {
+	if flag.NArg() > 0 {
 		fileName = flag.Arg(0)
+	}
+
+	if len(fileName) == 0 {
+		fmt.Fprintf(os.Stderr, "GoNES v0.1-alpha\n\nUsage:\n\t<rom-file>\n")
+		os.Exit(1)
+		return
 	}
 
 	romFile, err := os.Open(fileName)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("error opening ROM file: %v - %v", fileName, err))
 	}
 	defer romFile.Close()
 	var rom *ines.INesRom
