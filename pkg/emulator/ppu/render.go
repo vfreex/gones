@@ -166,6 +166,7 @@ func (ppu *PPUImpl) Render() {
 		// VINT pulled down, nops
 	} else if scanline <= 20 {
 		// dummy scanline
+		ppu.registers.status &= ^PPUStatus_VBlank
 	} else if scanline <= 260 {
 		// rendering
 		ppu.renderSprites()
@@ -239,6 +240,7 @@ func (ppu *PPUImpl) DrawPixel() {
 			// Each four bytes in SPR-RAM define attributes for one sprite
 			if x == 0 {
 				ppu.spriteShown = 0
+				ppu.registers.status &= ^PPUStatus_Sprite0Hit
 			}
 			// TODO: sprite 0 hit flag, clipping, etc
 			for spriteIndex := 0; spriteIndex < ppu.spriteCount; spriteIndex++ {
@@ -257,6 +259,10 @@ func (ppu *PPUImpl) DrawPixel() {
 				if spritePalette == 0 {
 					// transparent pixel
 					continue
+				}
+				if sprite.Id == 0 && currentPalette != 0 {
+					// set sprite 0 hit flag
+					ppu.registers.status |= PPUStatus_Sprite0Hit
 				}
 				if currentPalette != 0 && sprite.Attr.BackgroundPriority {
 					// background pixel covers this sprite pixel
