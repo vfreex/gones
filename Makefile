@@ -1,6 +1,6 @@
 all: gen build test
 build:
-	go build cmd/gones/main.go
+	go build -o gones cmd/gones/main.go
 gen:
 	go generate ./...
 test:
