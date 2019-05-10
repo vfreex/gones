@@ -84,10 +84,9 @@ func (nes *NESImpl) LoadCartridge(cartridge *ines.INesRom) error {
 		cartridge.Chr, nil)
 	nes.ppuAS.AddMapping(0x2000, 0x1000, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
 		nes.vram, func(addr memory.Ptr) memory.Ptr {
-			//return (addr - 0x2000) & 0xf7ff
 			if cartridge.Header.Flags6&ines.FLAGS6_FOUR_SCREEN_VRAM_ON != 0 {
 				// four-screen mirroring
-				return addr - 0x2000
+				return addr & 0xfff
 			} else if cartridge.Header.Flags6&ines.FLAGS6_VERTICAL_MIRRORING != 0 {
 				return addr & 0x7ff
 			} else {

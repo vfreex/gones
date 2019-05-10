@@ -23,6 +23,8 @@ type Cpu struct {
 	// interrupts
 	NMI bool
 	IRQ bool
+	// waitCycles
+	Wait int
 }
 
 var logger = logger2.GetLogger()
@@ -83,7 +85,7 @@ func (cpu *Cpu) PopW() uint16 {
 func (cpu *Cpu) ExecOneInstruction() (cycles int) {
 	if cpu.NMI {
 		cpu.ExecNMI()
-	} else if cpu.IRQ && cpu.P & PFLAG_I == 0 {
+	} else if cpu.IRQ && cpu.P&PFLAG_I == 0 {
 		cpu.ExecIRQ()
 	}
 	cpu.logInstruction()
@@ -99,7 +101,9 @@ func (cpu *Cpu) ExecOneInstruction() (cycles int) {
 	cycles2 := handler.Executor(cpu, operandAddr)
 	cpu.logRegisters()
 
-	return 1 + cycles1 + cycles2
+	wait := cpu.Wait
+	cpu.Wait = 0
+	return 1 + cycles1 + cycles2 + wait
 }
 
 func (cpu *Cpu) logInstruction() {
@@ -113,10 +117,9 @@ func (cpu *Cpu) logInstruction() {
 	case 1:
 		arguments[0] = cpu.Memory.Peek(cpu.PC + 1)
 	}
-	line := fmt.Sprintf("L%04x: %s %s ; %02x (%s-%s) %s",
+	logger.Debugf("L%04x: %s %s ; %02x (%s-%s) %s",
 		cpu.PC, info.Nemonics, formatInstructionArgument(info.AddressingMode, arguments),
 		opcode, info.Nemonics, info.AddressingMode.String(), hex.EncodeToString(arguments))
-	logger.Debug(line)
 }
 
 func formatInstructionArgument(am AddressingMode, args []byte) string {
