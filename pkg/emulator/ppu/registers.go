@@ -87,7 +87,21 @@ type Registers struct {
 	mask       PPUMask
 	status     PPUStatus
 	oamAddr    byte
+
+	// PPU internal registers
+	// http://wiki.nesdev.com/w/index.php/PPU_scrolling#PPU_internal_registers
+	v uint16
+	t uint16
+	x byte
+	w bool
+
+	bgNameLatch, bgLowLatch, bgHighLatch byte
+	attrLowLatch, attrHighLatch byte
+	bgHighShift, bgLowShift uint16
+	attrHighShift, attrLowShift uint16
+
 }
+
 
 func NewPPURegisters(ppu *PPUImpl) Registers {
 	registers := Registers{
@@ -153,6 +167,12 @@ func (p *Registers) Peek(addr memory.Ptr) byte {
 func (p *Registers) Poke(addr memory.Ptr, val byte) {
 	switch addr {
 	case PPUCTRL:
+		new := PPUCtrl(val) & PPUCtrl_NameTable
+		old := p.ctrl & PPUCtrl_NameTable
+		if new != old {
+			logger.Warnf("Bg nametable changed at scanline %d (y %d, x %d)",
+				p.ppu.scanline, p.ppu.scanline-21, p.ppu.dotInScanline)
+		}
 		p.ctrl = PPUCtrl(val)
 	case PPUMASK:
 		p.mask = PPUMask(val)
@@ -206,4 +226,5 @@ func (p *Registers) onOAMDMAWrite(val byte) {
 		b := p.ppu.cpu.Memory.Peek(src + i)
 		p.Poke(OAMDATA, b)
 	}
+	p.ppu.cpu.Wait += 510
 }

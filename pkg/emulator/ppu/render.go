@@ -36,6 +36,7 @@ func (ppu *PPUImpl) getCurrentNametableAddr() memory.Ptr {
 	}
 	return baseAddr
 }
+
 func (ppu *PPUImpl) ReadNameTableByte(offset memory.PtrDist) byte {
 	baseAddr := ppu.getCurrentNametableAddr()
 	return ppu.vram.Peek(baseAddr + offset)
@@ -80,7 +81,7 @@ func (ppu *PPUImpl) renderSprites() {
 		ppu.spriteCount = 0
 		ppu.registers.status &= ^PPUStatus_SpriteOverflow
 		for spriteIndex := 0; spriteIndex < 64; spriteIndex++ {
-			spriteY := int(ppu.SprRam.Peek(memory.Ptr(spriteIndex * 4)))
+			spriteY := int(ppu.SprRam.Peek(memory.Ptr(spriteIndex*4)) + 1)
 			deltaY := y - spriteY
 			spriteHeight := 8
 			if ppu.registers.ctrl&PPUCtrl_SpriteSize != 0 {
@@ -152,51 +153,132 @@ func (ppu *PPUImpl) renderSprites() {
 
 	}
 }
+
+func (ppu *PPUImpl) fillShifters() {
+	ppu.registers.bgHighShift = ppu.registers.bgHighShift&0xff00 | uint16(ppu.registers.bgHighLatch)
+	ppu.registers.bgLowShift = ppu.registers.bgLowShift&0xff00 | uint16(ppu.registers.bgLowLatch)
+	ppu.registers.attrHighShift = ppu.registers.attrHighShift&0xff00 | uint16(ppu.registers.attrHighLatch)
+	ppu.registers.attrLowShift = ppu.registers.attrLowShift&0xff00 | uint16(ppu.registers.attrLowLatch)
+}
+
 func (ppu *PPUImpl) Render() {
+	// http://wiki.nesdev.com/w/index.php/File:Ntsc_timing.png
 	scanline := ppu.scanline
 	x := ppu.dotInScanline
-	//y := scanline - 21
-	if scanline == 0 {
-		if x == 0 {
+	y := scanline - 21
+	lx := x + 16 + int(ppu.registers.hscroll)
+	coarseX := lx / 8
+	nt := int(ppu.registers.ctrl & PPUCtrl_NameTable)
+	if coarseX >= 32 {
+		nt ^= 1
+		coarseX %= 32
+	}
+	ly := y + int(ppu.registers.vscroll)
+	//if vy < 0 {
+	//	vy += 262
+	//}
+	coarseY := ly / 8
+	if coarseY >= 30 {
+		nt ^= 2
+		coarseY %= 30
+	}
+	fineY := ly % 8
+	ppu.registers.v = uint16(fineY&7<<12 | nt&3<<10 | coarseY&0X1f<<5 | coarseX&0X1f)
+
+	switch {
+	case scanline <= 19:
+		if scanline == 0 && x == 0 {
 			ppu.registers.status |= PPUStatus_VBlank
 			if ppu.registers.ctrl&PPUCtrl_NMIOnVBlank != 0 {
 				ppu.cpu.NMI = true
 			}
 		}
-		// VINT pulled down, nops
-	} else if scanline <= 20 {
-		// dummy scanline
-		ppu.registers.status &= ^PPUStatus_VBlank
-	} else if scanline <= 260 {
-		// rendering
-		ppu.renderSprites()
-		if x < 256 {
-			// BG Fetch
-			ppu.DrawPixel()
-		} else if x < 320 {
-			//ppu.DrawPixel(patternEntry0, patternEntry1, attrTableEntry)
-			// Sprite Fetch
-			// Fetches 4x8 bytes; two dummy Name Table entris, and two Pattern Table bytes; for 1st..8th sprite in NEXT scanline (fetches dummy patterns if the scanline contains less than 8 sprites).
-			// http://wiki.nesdev.com/w/index.php/PPU_sprite_evaluation
-			// First, it clears the list of sprites to draw
-			switch x % 8 {
-			case 0:
-				// Garbage nametable byte
-			case 2:
-				// Garbage nametable byte
-			case 4:
-				// Tile bitmap low
-			case 6:
-				// Tile bitmap high
-			}
-		} else if x < 336 {
-			// BG Fetch
-			//ppu.DrawPixel(patternEntry0, patternEntry1, attrTableEntry)
+	case scanline == 20: // dummy
+		if x == 0 {
+			ppu.registers.status &= ^(PPUStatus_Sprite0Hit | PPUStatus_SpriteOverflow | PPUStatus_VBlank)
 		}
+		if x == 339 && ppu.frame&1 != 0 {
+			// on every odd frame, the dead cycle at the end is removed
+			ppu.dotInScanline = 0
+			ppu.scanline++
+			break
+		}
+		//fallthrough
+	case scanline <= 260: // visible
+		ppu.renderSprites()
+		ppu.DrawPixel()
+		switch {
+		case x == 0: // dot 0: idle
+			// ppu.registers.v = ppu.getCurrentNametableAddr()
+		case x <= 256: // dot 1-256: fetch background
+			switch x % 8 {
+			case 1:
+				// The shifters are reloaded during ticks 9, 17, 25, ..., 257
+				if x >= 9 {
+					ppu.fillShifters()
+				}
+			case 2:
+				// fetch nametable
+				//nametableEntry := ppu.registers.v&0xfff | 0x2000
+				nametableEntry := 0x2000 + nt * 0x400 + coarseY * 32 + coarseX
+				ppu.registers.bgNameLatch = ppu.vram.Peek(memory.Ptr(nametableEntry))
+			case 4:
+				// fetch attrtable
+				groupId := coarseY/4*8 + coarseX/4
+				attrEntry := ppu.registers.v&0xc00 + 0x23c0 + memory.Ptr(groupId)
+				//attrEntry := ntaddr + 0x3c0 + memory.Ptr(groupId)
+				attr := ppu.vram.Peek(attrEntry)
+				paletteId := attr
+				if coarseY%4 >= 2 {
+					paletteId >>= 4
+				}
+				if coarseX%4 >= 2 {
+					paletteId >>= 2
+				}
+				paletteId &= 3
+				//if paletteId != paletteId1 {
+				//	panic("attr not equal")
+				//}
+				//if paletteId1&1 != 0 {
+				//	ppu.registers.attrLowLatch = 0xff
+				//} else {
+				//	ppu.registers.attrLowLatch = 0
+				//}
+				//if paletteId1&2 != 0 {
+				//	ppu.registers.attrHighLatch = 0xff
+				//} else {
+				//	ppu.registers.attrHighLatch = 0
+				//}
+			case 6:
+				// fetch bitmap low from pattern table
+				lowAddr := memory.Ptr(ppu.registers.bgNameLatch)*16 + memory.Ptr(fineY) //ppu.registers.v>>12&0x7
+				if ppu.registers.ctrl&PPUCtrl_BackgroundPatternTable != 0 {
+					lowAddr |= 0x1000
+				}
+				ppu.registers.bgLowLatch = ppu.vram.Peek(lowAddr)
+			case 0:
+				// fetch bitmap high from pattern table
+				highAddr := memory.Ptr(ppu.registers.bgNameLatch)*16 + 8 + memory.Ptr(fineY)// ppu.registers.v>>12&0x7
+				if ppu.registers.ctrl&PPUCtrl_BackgroundPatternTable != 0 {
+					highAddr |= 0x1000
+				}
+				ppu.registers.bgHighLatch = ppu.vram.Peek(highAddr)
+			}
+		case x == 257: // 257
+			ppu.fillShifters()
+			fallthrough
+		case x <= 320: // 258-320
+		case x <= 336: // 321-336
+		default: // 337-340
+		}
+		//ppu.renderSprites()
+		//if scanline > 20 && x < SCREEN_WIDTH {
+		//	// BG Fetch
+		//	ppu.DrawPixel()
+		//}
 
-	} else {
-		// when this scanline finishes, the VINT flag is set
-		//ppu.dumpVRAM()
+	case scanline == 261: // post
+
 	}
 	ppu.dotInScanline++
 	if ppu.dotInScanline >= 341 {
@@ -217,30 +299,25 @@ func (ppu *PPUImpl) DrawPixel() {
 		var currentPalette byte
 		// Draw background
 		if ppu.registers.mask&PPUMask_BackgroundVisibility != 0 {
-			tileId := y/8*32 + x/8
-			groupId := y/32*8 + x/32
-			offsetY := y % 8
-			offsetX := x % 8
-			fieldY := y % 32 / 16
-			fieldX := x % 32 / 16
-			field := fieldY*2 + fieldX
-			patternId := ppu.ReadNameTableByte(memory.Ptr(tileId))
-			low := ppu.ReadPatternTableByte(memory.Ptr(patternId)*16 + memory.Ptr(offsetY))
-			high := ppu.ReadPatternTableByte(memory.Ptr(patternId)*16 + 8 + memory.Ptr(offsetY))
-			currentPalette = high>>byte(7-offsetX)&1<<1 | low>>byte(7-offsetX)&1
-			if currentPalette > 0 {
-				// non-global background color
-				attr := ppu.ReadAttributeTableByte(memory.Ptr(groupId))
-				paletteId := attr >> (byte(field) * 2) & 3
-				currentPalette |= paletteId << 2
-			}
+			fineX := ppu.registers.hscroll % 8
+			//if fineX < 0 {
+			//	panic(fmt.Errorf("fineX = %v", fineX))
+			//}
+			currentPalette = byte(ppu.registers.bgHighShift>>byte(15-fineX)&1<<1 |
+				ppu.registers.bgLowShift>>byte(15-fineX)&1)
+
+			//attr1 := uint8(ppu.registers.attrLowShift>>15 | ppu.registers.attrHighShift>>15<<1)
+			//if currentPalette > 0 {
+			//	// non-global background color
+			//	currentPalette |= attr1
+			//}
+
 		}
 		// Draw sprites
 		if ppu.registers.mask&PPUMask_SpriteVisibility != 0 {
 			// Each four bytes in SPR-RAM define attributes for one sprite
 			if x == 0 {
 				ppu.spriteShown = 0
-				ppu.registers.status &= ^PPUStatus_Sprite0Hit
 			}
 			// TODO: sprite 0 hit flag, clipping, etc
 			for spriteIndex := 0; spriteIndex < ppu.spriteCount; spriteIndex++ {
@@ -284,6 +361,10 @@ func (ppu *PPUImpl) DrawPixel() {
 		ppu.RenderedBuffer[y][x] = Color(ppu.Palette.Peek(0x3F00 + memory.Ptr(currentPalette))).ToGRBColor()
 	}
 
+	ppu.registers.bgHighShift <<= 1
+	ppu.registers.bgLowShift <<= 1
+	//ppu.registers.attrHighShift <<= 1
+	//ppu.registers.attrLowShift <<= 1
 }
 
 func (ppu *PPUImpl) dumpVRAM() {
