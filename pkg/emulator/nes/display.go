@@ -143,7 +143,7 @@ func (p *NesDiplay) render() fyne.CanvasObject {
 	//p.update()
 	lastW, lastH := 0, 0
 	p.raster = canvas.NewRaster(func(w, h int) image.Image {
-		if p.img == nil || p.img.Rect.Size().X != lastW || p.img.Rect.Size().Y != lastH {
+		if p.img == nil || w != lastW || h != lastH {
 			p.img = image.NewRGBA(image.Rect(0, 0, w, h))
 			lastW = w
 			lastH = h
