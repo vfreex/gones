@@ -96,12 +96,12 @@ type Registers struct {
 	w bool
 
 	bgNameLatch, bgLowLatch, bgHighLatch byte
-	attrLowLatch, attrHighLatch byte
-	bgHighShift, bgLowShift uint16
-	attrHighShift, attrLowShift uint16
+	attrLowLatch, attrHighLatch          byte
+	bgHighShift, bgLowShift              uint16
+	attrHighShift, attrLowShift          uint16
 
+	fineX byte
 }
-
 
 func NewPPURegisters(ppu *PPUImpl) Registers {
 	registers := Registers{
@@ -185,8 +185,12 @@ func (p *Registers) Poke(addr memory.Ptr, val byte) {
 	case PPUSCROLL:
 		if !p.latch {
 			p.hscroll = val
+			p.fineX = val & 7
+			p.vramAddr = p.vramAddr&0xffe0 | memory.Ptr(val>>3)
+
 		} else {
 			p.vscroll = val
+			p.vramAddr = p.vramAddr&0x0c1f | memory.Ptr(val>>3)<<5 | memory.Ptr(val&7)<<12
 		}
 		p.latch = !p.latch
 	case PPUADDR:

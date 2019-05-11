@@ -12,12 +12,12 @@ const (
 )
 
 type PPUImpl struct {
-	cpu          *cpu.Cpu
-	registers    Registers
-	SprRam       SprRam
+	cpu       *cpu.Cpu
+	registers Registers
+	SprRam    SprRam
 	//secondaryOAM *ram.RAM
-	vram         memory.AddressSpace
-	Palette      Palette
+	vram    memory.AddressSpace
+	Palette Palette
 	//cycles         int64
 	//Frames         int64
 	RenderedBuffer           [SCREEN_HEIGHT][SCREEN_WIDTH]RBGColor
@@ -26,14 +26,16 @@ type PPUImpl struct {
 	frame                    int
 	spriteCount, spriteShown int
 	sprites                  [8]Sprite
+	currentSprites           [8]Sprite
+	currentSpritesCount      int
 }
 
 var logger = logger2.GetLogger()
 
 func NewPPU(vram memory.AddressSpace, cpu *cpu.Cpu) *PPUImpl {
 	ppu := &PPUImpl{
-		vram:         vram,
-		cpu:          cpu,
+		vram: vram,
+		cpu:  cpu,
 		//secondaryOAM: ram.NewRAM(32),
 	}
 	ppu.registers = NewPPURegisters(ppu)
