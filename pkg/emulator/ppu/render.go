@@ -226,11 +226,11 @@ func (ppu *PPUImpl) DrawPixel() {
 				}
 				break
 			}
-			if x == SCREEN_WIDTH-1 {
-				if ppu.currentSpritesCount > 0 {
-					logger.Warnf("Draw: Scanline #%d shows %d/%d sprites.", y, ppu.spriteShown, ppu.currentSpritesCount)
-				}
-			}
+			//if x == SCREEN_WIDTH-1 {
+			//	if ppu.currentSpritesCount > 0 {
+			//		logger.Warnf("Draw: Scanline #%d shows %d/%d sprites.", y, ppu.spriteShown, ppu.currentSpritesCount)
+			//	}
+			//}
 		}
 		ppu.RenderedBuffer[y][x] = Color(ppu.Palette.Peek(0x3F00 + memory.Ptr(currentPalette))).ToGRBColor()
 	}

@@ -112,10 +112,12 @@ func (cpu *Cpu) AddressIzx() (memory.Ptr, int) {
 func (cpu *Cpu) AddressIzy() (memory.Ptr, int) {
 	addr, _ := cpu.AddressZP()
 	low := memory.Ptr(cpu.Memory.Peek(addr))
-	high := memory.Ptr(cpu.Memory.Peek((addr + 1) & 0xff))
-	addr2 := high<<8 | low
-	if isCrossPage(addr2, cpu.Y) {
-		return addr2 + memory.Ptr(cpu.Y), 4
+	addr2 := (addr+1)&0x00ff
+	high := cpu.Memory.Peek(addr2)
+	addr3 := memory.Ptr(high)<<8 | memory.Ptr(low)
+	if isCrossPage(addr3, cpu.Y) {
+		addr4 := addr3&0xff00 | (addr3 + uint16(cpu.Y))&0x00ff
+		return addr4, 4
 	}
-	return addr2 + memory.Ptr(cpu.Y), 3
+	return addr3 + memory.Ptr(cpu.Y), 3
 }
