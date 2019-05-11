@@ -155,6 +155,10 @@ func (ppu *PPUImpl) renderSprites() {
 }
 
 func (ppu *PPUImpl) fillShifters() {
+	ppu.registers.bgHighShift <<= 8
+	ppu.registers.bgLowShift <<= 8
+	ppu.registers.attrHighShift <<= 8
+	ppu.registers.attrLowShift <<= 8
 	ppu.registers.bgHighShift = ppu.registers.bgHighShift&0xff00 | uint16(ppu.registers.bgHighLatch)
 	ppu.registers.bgLowShift = ppu.registers.bgLowShift&0xff00 | uint16(ppu.registers.bgLowLatch)
 	ppu.registers.attrHighShift = ppu.registers.attrHighShift&0xff00 | uint16(ppu.registers.attrHighLatch)
@@ -174,9 +178,6 @@ func (ppu *PPUImpl) Render() {
 		coarseX %= 32
 	}
 	ly := y + int(ppu.registers.vscroll)
-	//if vy < 0 {
-	//	vy += 262
-	//}
 	coarseY := ly / 8
 	if coarseY >= 30 {
 		nt ^= 2
@@ -184,7 +185,6 @@ func (ppu *PPUImpl) Render() {
 	}
 	fineY := ly % 8
 	ppu.registers.v = uint16(fineY&7<<12 | nt&3<<10 | coarseY&0X1f<<5 | coarseX&0X1f)
-
 	switch {
 	case scanline <= 19:
 		if scanline == 0 && x == 0 {
@@ -210,7 +210,8 @@ func (ppu *PPUImpl) Render() {
 		switch {
 		case x == 0: // dot 0: idle
 			// ppu.registers.v = ppu.getCurrentNametableAddr()
-		case x <= 256: // dot 1-256: fetch background
+		case x >= 2 && x <= 255: // dot 1-256: fetch background
+			//ppu.DrawPixel()
 			switch x % 8 {
 			case 1:
 				// The shifters are reloaded during ticks 9, 17, 25, ..., 257
@@ -220,7 +221,7 @@ func (ppu *PPUImpl) Render() {
 			case 2:
 				// fetch nametable
 				//nametableEntry := ppu.registers.v&0xfff | 0x2000
-				nametableEntry := 0x2000 + nt * 0x400 + coarseY * 32 + coarseX
+				nametableEntry := 0x2000 + nt*0x400 + coarseY*32 + coarseX
 				ppu.registers.bgNameLatch = ppu.vram.Peek(memory.Ptr(nametableEntry))
 			case 4:
 				// fetch attrtable
@@ -239,16 +240,16 @@ func (ppu *PPUImpl) Render() {
 				//if paletteId != paletteId1 {
 				//	panic("attr not equal")
 				//}
-				//if paletteId1&1 != 0 {
-				//	ppu.registers.attrLowLatch = 0xff
-				//} else {
-				//	ppu.registers.attrLowLatch = 0
-				//}
-				//if paletteId1&2 != 0 {
-				//	ppu.registers.attrHighLatch = 0xff
-				//} else {
-				//	ppu.registers.attrHighLatch = 0
-				//}
+				if paletteId&1 != 0 {
+					ppu.registers.attrLowLatch = 0xff
+				} else {
+					ppu.registers.attrLowLatch = 0
+				}
+				if paletteId&2 != 0 {
+					ppu.registers.attrHighLatch = 0xff
+				} else {
+					ppu.registers.attrHighLatch = 0
+				}
 			case 6:
 				// fetch bitmap low from pattern table
 				lowAddr := memory.Ptr(ppu.registers.bgNameLatch)*16 + memory.Ptr(fineY) //ppu.registers.v>>12&0x7
@@ -258,7 +259,7 @@ func (ppu *PPUImpl) Render() {
 				ppu.registers.bgLowLatch = ppu.vram.Peek(lowAddr)
 			case 0:
 				// fetch bitmap high from pattern table
-				highAddr := memory.Ptr(ppu.registers.bgNameLatch)*16 + 8 + memory.Ptr(fineY)// ppu.registers.v>>12&0x7
+				highAddr := memory.Ptr(ppu.registers.bgNameLatch)*16 + 8 + memory.Ptr(fineY) // ppu.registers.v>>12&0x7
 				if ppu.registers.ctrl&PPUCtrl_BackgroundPatternTable != 0 {
 					highAddr |= 0x1000
 				}
@@ -292,26 +293,54 @@ func (ppu *PPUImpl) Render() {
 }
 
 func (ppu *PPUImpl) DrawPixel() {
-	x := ppu.dotInScanline
+	x := ppu.dotInScanline - 2
 	y := ppu.scanline - 21
 
 	if y >= 0 && y < SCREEN_HEIGHT && x >= 0 && x < SCREEN_WIDTH {
 		var currentPalette byte
 		// Draw background
 		if ppu.registers.mask&PPUMask_BackgroundVisibility != 0 {
-			fineX := ppu.registers.hscroll % 8
-			//if fineX < 0 {
-			//	panic(fmt.Errorf("fineX = %v", fineX))
-			//}
-			currentPalette = byte(ppu.registers.bgHighShift>>byte(15-fineX)&1<<1 |
-				ppu.registers.bgLowShift>>byte(15-fineX)&1)
-
-			//attr1 := uint8(ppu.registers.attrLowShift>>15 | ppu.registers.attrHighShift>>15<<1)
-			//if currentPalette > 0 {
-			//	// non-global background color
-			//	currentPalette |= attr1
-			//}
-
+			// non-buffered rending
+			vx := x + int(ppu.registers.hscroll)
+			coarseX := vx / 8
+			nt := int(ppu.registers.ctrl & PPUCtrl_NameTable)
+			if coarseX >= 32 {
+				nt ^= 1
+				coarseX %= 32
+			}
+			vy := y + int(ppu.registers.vscroll)
+			coarseY := vy / 8
+			if coarseY >= 30 {
+				nt ^= 2
+				coarseY %= 30
+			}
+			fineY := vy % 8
+			fineX := vx % 8
+			nametableEntry := 0x2000 | nt*0x400 | coarseY*32 | coarseX
+			bgTile := ppu.vram.Peek(memory.Ptr(nametableEntry))
+			lowAddr := memory.Ptr(bgTile)*16 + memory.Ptr(fineY) //ppu.registers.v>>12&0x7
+			if ppu.registers.ctrl&PPUCtrl_BackgroundPatternTable != 0 {
+				lowAddr |= 0x1000
+			}
+			low := ppu.vram.Peek(lowAddr)
+			highAddr := memory.Ptr(bgTile)*16 + 8 + memory.Ptr(fineY) // ppu.registers.v>>12&0x7
+			if ppu.registers.ctrl&PPUCtrl_BackgroundPatternTable != 0 {
+				highAddr |= 0x1000
+			}
+			high := ppu.vram.Peek(highAddr)
+			currentPalette = byte(high>>byte(7-fineX)&1<<1 |
+				low>>byte(7-fineX)&1)
+			if currentPalette > 0 {
+				attrAddr := 0x23C0 | nt*0x400 | coarseY/4<<3 | coarseX/4
+				attr := ppu.vram.Peek(memory.Ptr(attrAddr))
+				if coarseY%4 >= 2 {
+					attr >>= 4
+				}
+				if coarseX%4 >= 2 {
+					attr >>= 2
+				}
+				currentPalette |= attr & 3 << 2
+			}
 		}
 		// Draw sprites
 		if ppu.registers.mask&PPUMask_SpriteVisibility != 0 {
@@ -361,8 +390,8 @@ func (ppu *PPUImpl) DrawPixel() {
 		ppu.RenderedBuffer[y][x] = Color(ppu.Palette.Peek(0x3F00 + memory.Ptr(currentPalette))).ToGRBColor()
 	}
 
-	ppu.registers.bgHighShift <<= 1
-	ppu.registers.bgLowShift <<= 1
+	//ppu.registers.bgHighShift <<= 1
+	//ppu.registers.bgLowShift <<= 1
 	//ppu.registers.attrHighShift <<= 1
 	//ppu.registers.attrLowShift <<= 1
 }
