@@ -115,6 +115,8 @@ func NewINesRom(reader io.Reader) (*INesRom, error) {
 		rom.Mapper = mappers.NewMapper00(prgBin, chrBin)
 	case 1:
 		rom.Mapper = mappers.NewMapper01(prgBin, chrBin)
+	case 2:
+		rom.Mapper = mappers.NewMapper02(prgBin, chrBin)
 	case 3:
 		rom.Mapper = mappers.NewMapper03(prgBin, chrBin)
 	default:
