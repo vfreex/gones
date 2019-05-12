@@ -7,27 +7,26 @@ import (
 )
 
 const (
-	SCREEN_WIDTH  = 256
-	SCREEN_HEIGHT = 240
+	ScanlinesPerFrame     = 262
+	DotsPerScanline       = 341
+	VisualDotsPerScanline = 256
+	VisualScanlines       = 240
 )
 
 type PPUImpl struct {
-	cpu       *cpu.Cpu
-	registers Registers
-	SprRam    SprRam
-	//secondaryOAM *ram.RAM
-	vram    memory.AddressSpace
-	Palette Palette
-	//cycles         int64
-	//Frames         int64
-	RenderedBuffer           [SCREEN_HEIGHT][SCREEN_WIDTH]RBGColor
-	scanline                 int
-	dotInScanline            int
-	frame                    int
-	spriteCount, spriteShown int
-	sprites                  [8]Sprite
-	currentSprites           [8]Sprite
-	currentSpritesCount      int
+	cpu                 *cpu.Cpu
+	registers           Registers
+	sprRam              SprRam
+	vram                memory.AddressSpace
+	Palette             Palette
+	RenderedBuffer      [VisualScanlines][VisualDotsPerScanline]RBGColor
+	scanline            int
+	dotInScanline       int
+	frame               int
+	spriteCount         int
+	sprites             [8]Sprite
+	currentSprites      [8]Sprite
+	currentSpritesCount int
 }
 
 var logger = logger2.GetLogger()

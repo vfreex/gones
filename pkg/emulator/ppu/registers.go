@@ -65,6 +65,94 @@ const (
 	OAMDMA    = 0x4014 // W
 )
 
+type PPUAddrRegister memory.Ptr
+
+func (p *PPUAddrRegister) CoarseX() int {
+	return int(*p & PPUAddrMask_CoarseX)
+}
+func (p *PPUAddrRegister) SetCoarseX(val int) {
+	*p = *p & ^PPUAddrMask_CoarseX | PPUAddrRegister(val&0x1f)
+}
+func (p *PPUAddrRegister) IncreaseCoarseX() {
+	coarseX := p.CoarseX()
+	if coarseX < 31 {
+		p.SetCoarseX(coarseX + 1)
+	} else {
+		p.SetCoarseX(0)
+		*p ^= 0x400 // toggle nametable
+	}
+}
+func (p *PPUAddrRegister) IncreaseFineY() {
+	// http://wiki.nesdev.com/w/index.php/PPU_scrolling#Y_increment
+	fineY := p.FineY()
+	if fineY < 7 {
+		p.SetFineY(fineY + 1)
+		return
+	}
+	p.SetFineY(0)
+	coarseY := p.CoarseY()
+	if coarseY == 29 {
+		p.SetCoarseY(0)
+		*p ^= 0x800 // toggle nametable
+		return
+	}
+	if coarseY == 31 {
+		p.SetCoarseY(0)
+		// don't toggle nametable
+		return
+	}
+	p.SetCoarseY(coarseY + 1)
+}
+
+func (p *PPUAddrRegister) CoarseY() int {
+	return int(*p & PPUAddrMask_CoarseY >> 5)
+}
+func (p *PPUAddrRegister) SetCoarseY(val int) {
+	*p = *p & ^PPUAddrMask_CoarseY | PPUAddrRegister(val&0x1f<<5)
+}
+func (p *PPUAddrRegister) Nametable() int {
+	return int(*p & PPUAddrMask_Nametable >> 10)
+}
+func (p *PPUAddrRegister) SetNametable(val int) {
+	*p = *p & ^PPUAddrMask_Nametable | PPUAddrRegister(val&0x3<<10)
+}
+func (p *PPUAddrRegister) FineY() int {
+	return int(*p & PPUAddrMask_FineY >> 12)
+}
+func (p *PPUAddrRegister) SetFineY(val int) {
+	*p = *p & ^PPUAddrMask_FineY | PPUAddrRegister(val&0x7<<12)
+}
+func (p *PPUAddrRegister) Address() memory.Ptr {
+	return memory.Ptr(*p & PPUAddrMask_Addr)
+}
+func (p *PPUAddrRegister) SetAddress(val memory.Ptr) {
+	*p = PPUAddrRegister(val) & PPUAddrMask_Addr
+}
+func (p *PPUAddrRegister) SetAddressHigh(val byte) {
+	*p = *p&0x00ff | PPUAddrRegister(val&0x3f)<<8
+}
+func (p *PPUAddrRegister) SetAddressLow(val byte) {
+	*p = *p&0xff00 | PPUAddrRegister(val)
+}
+func (p *PPUAddrRegister) GetValue() memory.Ptr {
+	return memory.Ptr(*p & 0x7fff)
+}
+func (p *PPUAddrRegister) SetValue(val memory.Ptr) {
+	*p = PPUAddrRegister(val) & 0x7fff
+}
+func (p *PPUAddrRegister) String() string {
+	return fmt.Sprintf("value=%04x, nt=%v, coarseX=%v, coarseY=%v, fineY=%v",
+		p.GetValue(), p.Nametable(), p.CoarseX(), p.CoarseY(), p.FineY())
+}
+
+const (
+	PPUAddrMask_CoarseX   PPUAddrRegister = 0x001f
+	PPUAddrMask_CoarseY   PPUAddrRegister = 0x03e0
+	PPUAddrMask_Nametable PPUAddrRegister = 0x0c00
+	PPUAddrMask_FineY     PPUAddrRegister = 0x7000
+	PPUAddrMask_Addr      PPUAddrRegister = 0x3fff
+)
+
 const (
 	ACL_Read RegisterACL = 1 << iota
 	ACL_Write
@@ -78,11 +166,7 @@ type Register struct {
 type Registers struct {
 	ppu *PPUImpl
 	//registers  map[memory.Ptr]*Register
-	latch      bool
 	latchCache byte
-	vramAddr   memory.Ptr
-	hscroll    byte
-	vscroll    byte
 	ctrl       PPUCtrl
 	mask       PPUMask
 	status     PPUStatus
@@ -90,8 +174,8 @@ type Registers struct {
 
 	// PPU internal registers
 	// http://wiki.nesdev.com/w/index.php/PPU_scrolling#PPU_internal_registers
-	v uint16
-	t uint16
+	v PPUAddrRegister
+	t PPUAddrRegister
 	x byte
 	w bool
 
@@ -99,8 +183,6 @@ type Registers struct {
 	attrLowLatch, attrHighLatch          byte
 	bgHighShift, bgLowShift              uint16
 	attrHighShift, attrLowShift          uint16
-
-	fineX byte
 }
 
 func NewPPURegisters(ppu *PPUImpl) Registers {
@@ -122,41 +204,33 @@ func NewPPURegisters(ppu *PPUImpl) Registers {
 }
 
 func (p *Registers) Peek(addr memory.Ptr) byte {
-	//r, ok := p.registers[addr]
-	//if !ok {
-	//	panic(fmt.Errorf("no PPU register at address %04x", addr))
-	//}
-	//if r.acl&ACL_Read == 0 {
-	//	panic(fmt.Errorf("no read access to PPU register %04x", addr))
-	//}
-	//return r.value
 	var r byte
 	switch addr {
 	case PPUSTATUS:
 		r = byte(p.status)
 		p.status &= ^PPUStatus_VBlank
-		p.latch = false
+		p.w = false
 	case OAMDATA:
 		// The address is NOT auto-incremented after <reading> from 2004h.
-		return p.ppu.SprRam.Peek(memory.Ptr(p.oamAddr))
+		return p.ppu.sprRam.Peek(memory.Ptr(p.oamAddr))
 	case PPUDATA:
 		// Reading from VRAM 0000h-3EFFh loads the desired value into a latch,
 		// and returns the OLD content of the latch to the CPU
-		if p.vramAddr < 0x3f00 {
+		if p.v.Address() < 0x3f00 {
 			r = p.latchCache
-			p.latchCache = p.ppu.vram.Peek(p.vramAddr)
+			p.latchCache = p.ppu.vram.Peek(p.v.Address())
 		} else {
 			// reading from Palette memory VRAM 3F00h-3FFFh does directly access the desired address.
-			r = p.ppu.vram.Peek(p.vramAddr)
+			r = p.ppu.vram.Peek(p.v.Address())
 			// reading the palettes still updates the internal buffer though, but the data placed in it is the mirrored nametable data that would appear "underneath" the palette
-			p.latchCache = p.ppu.vram.Peek(p.vramAddr & 0x2FFF)
+			p.latchCache = p.ppu.vram.Peek(p.v.Address() & 0x2FFF)
 		}
 		// The PPU will auto-increment the VRAM address (selected via Port 2006h)
 		// after each read/write from/to Port 2007h by 1 or 32 (depending on Bit2 of $2000).
 		if p.ctrl&PPUCtrl_PPUDataIncrement != 0 {
-			p.vramAddr += 32
+			p.v += 32
 		} else {
-			p.vramAddr++
+			p.v++
 		}
 	default:
 		panic(fmt.Errorf("PPU register %04x is not readable", addr))
@@ -167,49 +241,43 @@ func (p *Registers) Peek(addr memory.Ptr) byte {
 func (p *Registers) Poke(addr memory.Ptr, val byte) {
 	switch addr {
 	case PPUCTRL:
-		new := PPUCtrl(val) & PPUCtrl_NameTable
-		old := p.ctrl & PPUCtrl_NameTable
-		if new != old {
-			logger.Warnf("Bg nametable changed at scanline %d (y %d, x %d)",
-				p.ppu.scanline, p.ppu.scanline-21, p.ppu.dotInScanline)
-		}
 		p.ctrl = PPUCtrl(val)
+		newNT := p.ctrl & PPUCtrl_NameTable
+		p.t.SetNametable(int(newNT))
 	case PPUMASK:
 		p.mask = PPUMask(val)
 	case OAMADDR:
 		p.oamAddr = val
 	case OAMDATA:
 		// The Port 2003h address is auto-incremented by 1 after each <write> to 2004h.
-		p.ppu.SprRam.Poke(memory.Ptr(p.oamAddr), val)
+		p.ppu.sprRam.Poke(memory.Ptr(p.oamAddr), val)
 		p.oamAddr++
 	case PPUSCROLL:
-		if !p.latch {
-			p.hscroll = val
-			p.fineX = val & 7
-			p.vramAddr = p.vramAddr&0xffe0 | memory.Ptr(val>>3)
-
-		} else {
-			p.vscroll = val
-			p.vramAddr = p.vramAddr&0x0c1f | memory.Ptr(val>>3)<<5 | memory.Ptr(val&7)<<12
+		if !p.w { // first write, x scroll
+			p.t.SetCoarseX(int(val >> 3))
+			p.x = val & 7
+		} else { // second write, y scroll
+			p.t.SetFineY(int(val & 7))
+			p.t.SetCoarseY(int(val >> 3))
 		}
-		p.latch = !p.latch
+		p.w = !p.w
 	case PPUADDR:
-		// After reading PPUSTATUS to reset the address latch,
-		// write the 16-bit address of VRAM you want to access here
-		if !p.latch { // first write, upper byte (6bit)
-			p.vramAddr = (memory.Ptr(val) & 0x3F) << 8
-		} else { // second write, lower byte (8bit)
-			p.vramAddr |= memory.Ptr(val)
+		if !p.w { // first write, high bits
+			p.t.SetAddressHigh(val&0x3f)
+			p.x = 0
+		} else { // second write, low bits
+			p.t.SetAddressLow(val)
+			p.v.SetValue(p.t.GetValue())
 		}
-		p.latch = !p.latch
+		p.w = !p.w
 	case PPUDATA:
-		p.ppu.vram.Poke(p.vramAddr, val)
+		p.ppu.vram.Poke(p.v.Address(), val)
 		// The PPU will auto-increment the VRAM address (selected via Port 2006h)
 		// after each read/write from/to Port 2007h by 1 or 32 (depending on Bit2 of $2000).
 		if p.ctrl&PPUCtrl_PPUDataIncrement != 0 {
-			p.vramAddr += 32
+			p.v += 32
 		} else {
-			p.vramAddr++
+			p.v++
 		}
 	case OAMDMA:
 		p.onOAMDMAWrite(val)

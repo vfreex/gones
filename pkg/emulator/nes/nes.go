@@ -56,7 +56,7 @@ func NewNes() NES {
 			return addr - 0x4000
 		})
 	//nes.cpuAS.AddMapping(0x4014, 1, memory.MMAP_MODE_WRITE,
-	//memory.NewOamDma(nes.cpuAS, &nes.ppu.SprRam), nil)
+	//memory.NewOamDma(nes.cpuAS, &nes.ppu.sprRam), nil)
 	nes.ppu.MapToCPUAddressSpace(nes.cpuAS)
 	// fake memory map range
 	nes.cpuAS.AddMapping(0x4015, 1, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
@@ -86,10 +86,13 @@ func (nes *NESImpl) LoadCartridge(cartridge *ines.INesRom) error {
 		nes.vram, func(addr memory.Ptr) memory.Ptr {
 			if cartridge.Header.Flags6&ines.FLAGS6_FOUR_SCREEN_VRAM_ON != 0 {
 				// four-screen mirroring
+				//logger.Debug("Cartridge uses 4-screen mirroring")
 				return addr & 0xfff
 			} else if cartridge.Header.Flags6&ines.FLAGS6_VERTICAL_MIRRORING != 0 {
+				//logger.Debug("Cartridge uses vertical mirroring")
 				return addr & 0x7ff
 			} else {
+				//logger.Debug("Cartridge uses horizontal mirroring")
 				return addr/2&0x400 | addr&0x3ff
 			}
 		})
@@ -129,7 +132,7 @@ func (nes *NESImpl) Start() error {
 					panic("invalid cycle")
 				}
 				for pp := int64(0); pp < cycles*3; pp++ {
-					nes.ppu.Render()
+					nes.ppu.Step()
 				}
 				spentCycles += cycles
 				loop++

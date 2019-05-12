@@ -25,8 +25,8 @@ type ZapLogger struct {
 }
 
 func NewLogger() *ZapLogger {
-	//logger, _ := zap.NewDevelopment()
 	logger, _ := zap.NewProduction()
+	//logger, _ = zap.NewDevelopment()
 	return &ZapLogger{
 		logger: logger,
 		suger:  logger.Sugar(),

@@ -62,7 +62,7 @@ func (p *Mapper01PrgRom) Peek(addr memory.Ptr) byte {
 		panic(fmt.Errorf("program trying to read from Mapper 01 via invalid ROM address 0x%x", addr))
 	}
 	if addr < 0x8000 {
-		return p.mapper.PrgRam.Peek(addr - 0x4020)
+		return p.mapper.PrgRam.Peek(addr - 0x4000)
 	}
 	offset := int(addr) & 0x3fff
 	bank := int(p.mapper.Registers[3] & 0x0f)
@@ -96,7 +96,7 @@ func (p *Mapper01PrgRom) Poke(addr memory.Ptr, val byte) {
 	}
 	if addr < 0x8000 {
 		// write to PRG-RAM
-		p.mapper.PrgRam.Poke(addr-0x4020, val)
+		p.mapper.PrgRam.Poke(addr-0x4000, val)
 		return
 	}
 	// write to mapper register
