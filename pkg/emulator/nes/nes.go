@@ -29,7 +29,7 @@ type NESImpl struct {
 	ram     memory.Memory
 	ppu     *ppu.PPUImpl
 	ppuAS   memory.AddressSpace
-	vram    memory.Memory
+	vram    *ram.CIRam
 	display *NesDiplay
 	joypads *joypad.Joypads
 }
@@ -39,7 +39,7 @@ func NewNes() NES {
 		cpuAS:   &memory.AddressSpaceImpl{},
 		ram:     ram.NewMainRAM(),
 		ppuAS:   &memory.AddressSpaceImpl{},
-		vram:    ram.NewRAM(0x800),
+		vram:    ram.NewCIRam(),
 		joypads: joypad.NewJoypads(),
 	}
 	nes.cpu = cpu.NewCpu(nes.cpuAS)
@@ -82,20 +82,24 @@ func (nes *NESImpl) LoadCartridge(cartridge *ines.INesRom) error {
 	// load CHR-ROM/CHR-RAM
 	nes.ppuAS.AddMapping(0, 0x2000, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
 		cartridge.Chr, nil)
+	if cartridge.Header.Flags6&ines.FLAGS6_FOUR_SCREEN_VRAM_ON != 0 {
+		nes.vram.SetNametableMirroring(0, 0)
+		nes.vram.SetNametableMirroring(1, 1)
+		nes.vram.SetNametableMirroring(2, 2)
+		nes.vram.SetNametableMirroring(3, 3)
+	} else if cartridge.Header.Flags6&ines.FLAGS6_VERTICAL_MIRRORING != 0 {
+		nes.vram.SetNametableMirroring(0, 0)
+		nes.vram.SetNametableMirroring(1, 1)
+		nes.vram.SetNametableMirroring(2, 0)
+		nes.vram.SetNametableMirroring(3, 1)
+	} else {
+		nes.vram.SetNametableMirroring(0, 0)
+		nes.vram.SetNametableMirroring(1, 0)
+		nes.vram.SetNametableMirroring(2, 1)
+		nes.vram.SetNametableMirroring(3, 1)
+	}
 	nes.ppuAS.AddMapping(0x2000, 0x1000, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
-		nes.vram, func(addr memory.Ptr) memory.Ptr {
-			if cartridge.Header.Flags6&ines.FLAGS6_FOUR_SCREEN_VRAM_ON != 0 {
-				// four-screen mirroring
-				//logger.Debug("Cartridge uses 4-screen mirroring")
-				return addr & 0xfff
-			} else if cartridge.Header.Flags6&ines.FLAGS6_VERTICAL_MIRRORING != 0 {
-				//logger.Debug("Cartridge uses vertical mirroring")
-				return addr & 0x7ff
-			} else {
-				//logger.Debug("Cartridge uses horizontal mirroring")
-				return addr/2&0x400 | addr&0x3ff
-			}
-		})
+		nes.vram, nil)
 	return nil
 }
 
