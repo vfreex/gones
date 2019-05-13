@@ -233,7 +233,9 @@ func (p *Registers) Peek(addr memory.Ptr) byte {
 			p.v++
 		}
 	default:
-		panic(fmt.Errorf("PPU register %04x is not readable", addr))
+		// FIXME: not sure if this behavior matches the real hardware
+		logger.Warnf("program trying reading from \"write-only\" PPU register %04x", addr)
+		return p.latchCache
 	}
 	return r
 }
@@ -259,15 +261,18 @@ func (p *Registers) Poke(addr memory.Ptr, val byte) {
 		} else { // second write, y scroll
 			p.t.SetFineY(int(val & 7))
 			p.t.SetCoarseY(int(val >> 3))
+			if val != 0 {
+				logger.Infof("set Y scroll: %v, t=%v", val, p.t.String())
+			}
 		}
 		p.w = !p.w
 	case PPUADDR:
 		if !p.w { // first write, high bits
-			p.t.SetAddressHigh(val&0x3f)
+			p.t.SetAddressHigh(val & 0x3f)
 			p.x = 0
 		} else { // second write, low bits
 			p.t.SetAddressLow(val)
-			p.v.SetValue(p.t.GetValue())
+			p.v = p.t
 		}
 		p.w = !p.w
 	case PPUDATA:
