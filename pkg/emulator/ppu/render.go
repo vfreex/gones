@@ -251,7 +251,10 @@ func (ppu *PPUImpl) Step() {
 		switch {
 		case dot == 0: // idle
 		case dot >= 1 && dot <= 256: // fetches 3rd..34th tile in scanline
-			ppu.fetchBgTileRow((dot-1)%8)
+			if scanline == 261 {
+				break
+			}
+			ppu.fetchBgTileRow((dot - 1) % 8)
 			if ppu.registers.mask&(PPUMask_BackgroundVisibility|PPUMask_SpriteVisibility) != 0 {
 				if dot%8 == 0 { // dots 8, 16, 24, ..., 256: increase coarseX
 					ppu.registers.v.IncreaseCoarseX()
@@ -267,7 +270,7 @@ func (ppu *PPUImpl) Step() {
 			}
 		case dot >= 257 && dot <= 320: // fetching the sprites on the next scanline
 		case dot >= 321 && dot <= 336: // fetching the first two tiles for the next scanline
-			ppu.fetchBgTileRow((dot-321)%8)
+			ppu.fetchBgTileRow((dot - 321) % 8)
 			if ppu.registers.mask&(PPUMask_BackgroundVisibility|PPUMask_SpriteVisibility) != 0 {
 				if dot%8 == 0 { // dots 328, 336: increase coarseX
 					ppu.registers.v.IncreaseCoarseX()

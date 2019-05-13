@@ -10,7 +10,7 @@ import (
 // http://wiki.nesdev.com/w/index.php/Mirroring#Nametable_Mirroring
 
 type CIRam struct {
-	ram         [0x1000]byte
+	ram          [0x1000]byte
 	mirroringMap [4]int
 }
 
@@ -31,7 +31,7 @@ func (p *CIRam) SetNametableMirroring(logical, physical int) {
 func (p *CIRam) mapAddr(addr memory.Ptr) memory.Ptr {
 	logical := (addr & 0xfff) / 0x400
 	physical := p.mirroringMap[logical]
-	return memory.Ptr(physical * 0x400)
+	return memory.Ptr(physical*0x400) | addr&0x3ff
 }
 
 func (p *CIRam) Peek(addr memory.Ptr) byte {
