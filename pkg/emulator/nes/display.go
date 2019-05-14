@@ -103,7 +103,11 @@ func NewDisplay(screenPixels *[SCREEN_HEIGHT][SCREEN_WIDTH]ppu.RBGColor) *NesDip
 			display.Keys |= joypad.Button_B
 		case fyne.KeyX:
 			display.Keys |= joypad.Button_A
+		case fyne.KeyTab:
+			fallthrough
 		case "LeftControl":
+			fallthrough
+		case "RightControl":
 			display.Keys |= joypad.Button_Select
 		}
 	})
@@ -131,11 +135,15 @@ func NewDisplay(screenPixels *[SCREEN_HEIGHT][SCREEN_WIDTH]ppu.RBGColor) *NesDip
 			display.Keys &= ^ joypad.Button_B
 		case fyne.KeyX:
 			display.Keys &= ^ joypad.Button_A
+		case fyne.KeyTab:
+			fallthrough
 		case "LeftControl":
+			fallthrough
+		case "RightControl":
 			display.Keys &= ^ joypad.Button_Select
 		}
 	})
-	//mainWindow.SetFixedSize(true)
+	mainWindow.SetFixedSize(true)
 	return display
 }
 
@@ -156,9 +164,7 @@ func (p *NesDiplay) render() fyne.CanvasObject {
 		}
 		return p.img
 	})
-	p.raster.SetMinSize(fyne.NewSize(SCREEN_WIDTH, SCREEN_HEIGHT))
-	//p.raster.SetMinSize(fyne.NewSize(400, 300))
-	//p.canvasObj = fyne.NewContainer(p.raster)
+	p.raster.SetMinSize(fyne.NewSize(SCREEN_WIDTH*2, SCREEN_HEIGHT*2))
 	p.canvasObj = p.raster
 	return p.canvasObj
 }
