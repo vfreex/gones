@@ -99,6 +99,9 @@ func (nes *NESImpl) Start() error {
 	interval := 1 * time.Second / fps
 	cpuCyclesPerFrame := 29780
 	nes.ticker = time.NewTicker(interval)
+	nes.ppu.NewFrameHandler = func(frame *[240][256]ppu.RBGColor, frameID int) {
+		nes.display.Refresh()
+	}
 	cpu := nes.cpu
 	cpu.PowerUp()
 
@@ -131,7 +134,7 @@ func (nes *NESImpl) Start() error {
 				//logger.Debug("")
 				//logger.Infof("spent %d/%d CPU cycles", spentCycles, cpuCyclesPerFrame)
 			}
-			nes.display.Refresh()
+			//nes.display.Refresh()
 			// update joypad
 			nes.joypads.Joypads[0].Buttons = nes.display.Keys
 			//logger.SetOutput(os.Stderr)

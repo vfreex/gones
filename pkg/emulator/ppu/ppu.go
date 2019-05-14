@@ -13,6 +13,8 @@ const (
 	VisualScanlines       = 240
 )
 
+type NewFrameHandler func(frame *[VisualScanlines][VisualDotsPerScanline]RBGColor, frameID int)
+
 type PPUImpl struct {
 	cpu                 *cpu.Cpu
 	registers           Registers
@@ -27,6 +29,7 @@ type PPUImpl struct {
 	sprites             [8]Sprite
 	currentSprites      [8]Sprite
 	currentSpritesCount int
+	NewFrameHandler     NewFrameHandler
 }
 
 var logger = logger2.GetLogger()

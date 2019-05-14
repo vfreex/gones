@@ -13,6 +13,9 @@ func (ppu *PPUImpl) renderSprites() {
 	// http://wiki.nesdev.com/w/index.php/PPU_sprite_evaluation
 	dot := ppu.dotInScanline
 	y := ppu.scanline //- 21
+	if y == 261 {
+		y = 255
+	}
 	switch {
 	case dot == 0:
 		ppu.currentSpritesCount = ppu.spriteCount
@@ -40,11 +43,6 @@ func (ppu *PPUImpl) renderSprites() {
 				break
 			}
 
-			var spriteBytes [4]byte
-			for i := 0; i < 4; i++ {
-				spriteBytes[i] = ppu.sprRam.Peek(memory.Ptr(spriteIndex*4 + i))
-				//ppu.secondaryOAM.Poke(memory.Ptr(spriteCount*4+i), toCopy)
-			}
 			// evaluate sprite
 			sprite := &ppu.sprites[ppu.spriteCount]
 			sprite.Id = spriteIndex
@@ -162,7 +160,7 @@ func (ppu *PPUImpl) drawPixel() {
 			}
 		}
 		color := ppu.Palette.Peek(0x3F00 + memory.Ptr(currentPalette))
-		if ppu.registers.mask & PPUMask_Greyscale != 0 {
+		if ppu.registers.mask&PPUMask_Greyscale != 0 {
 			color &= 0x30
 		}
 		ppu.RenderedBuffer[y][x] = Color(color).ToGRBColor()
@@ -282,6 +280,9 @@ func (ppu *PPUImpl) Step() {
 		case dot >= 337 && dot <= 340:
 		}
 	case scanline == 240: // post scanline
+		if dot == 0 && ppu.NewFrameHandler != nil {
+			ppu.NewFrameHandler(&ppu.RenderedBuffer, ppu.frame)
+		}
 	case scanline == 241: // VINT
 		if dot == 1 {
 			ppu.registers.status |= PPUStatus_VBlank
