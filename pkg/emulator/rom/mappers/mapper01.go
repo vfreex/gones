@@ -3,6 +3,7 @@ package mappers
 import (
 	"fmt"
 	"github.com/vfreex/gones/pkg/emulator/memory"
+	"github.com/vfreex/gones/pkg/emulator/ppu"
 	"github.com/vfreex/gones/pkg/emulator/ram"
 )
 
@@ -29,10 +30,12 @@ type Mapper01 struct {
 	ShiftRegister      byte
 	WriteCounter       int
 	Registers          [4]byte
+	ppu                *ppu.PPUImpl
 }
 
 func NewMapper01(prgBin, chrBin []byte) *Mapper01 {
 	mapper := &Mapper01{}
+	//mapper.ppu = ppu
 	mapper.Prg.bin = prgBin
 	mapper.Prg.mapper = mapper
 	if len(chrBin) > 0 {
@@ -62,7 +65,7 @@ func (p *Mapper01PrgRom) Peek(addr memory.Ptr) byte {
 		panic(fmt.Errorf("program trying to read from Mapper 01 via invalid ROM address 0x%x", addr))
 	}
 	if addr < 0x8000 {
-		return p.mapper.PrgRam.Peek(addr - 0x4000)
+		return p.mapper.PrgRam.Peek(addr - 0x4020)
 	}
 	offset := int(addr) & 0x3fff
 	bank := int(p.mapper.Registers[3] & 0x0f)
@@ -87,6 +90,9 @@ func (p *Mapper01PrgRom) Peek(addr memory.Ptr) byte {
 		}
 	}
 	physicalAddr := bank*PrgBankSize | offset
+	if physicalAddr >= len(p.bin) {
+		panic(fmt.Sprintf("error accessing cartrige PRG-ROM with address %04x (%04x/%04x)", addr, physicalAddr, len(p.bin)))
+	}
 	return p.bin[physicalAddr]
 }
 
@@ -96,7 +102,7 @@ func (p *Mapper01PrgRom) Poke(addr memory.Ptr, val byte) {
 	}
 	if addr < 0x8000 {
 		// write to PRG-RAM
-		p.mapper.PrgRam.Poke(addr-0x4000, val)
+		p.mapper.PrgRam.Poke(addr-0x4020, val)
 		return
 	}
 	// write to mapper register
@@ -114,8 +120,13 @@ func (p *Mapper01PrgRom) Poke(addr memory.Ptr, val byte) {
 			p.mapper.WriteCounter = 0
 			// TODO: cartridge set nametable mirroring
 			switch p.mapper.Registers[0] & 0x3 {
+			case 0: // one-screen, lower bank;
+			case 1: // one-screen, upper bank;
 			case 2: // Two-Screen Vertical Mirroring
+				//p.mapper.ppu.SetNametableMirroring(ppu.NametableMirroring_Verticle)
+				//panic("vertical mirroring")
 			case 3: // Two-Screen Horizontal Mirroring
+				//p.mapper.ppu.SetNametableMirroring(ppu.NametableMirroring_Horzontal)
 			default:
 			}
 		}
@@ -156,5 +167,18 @@ func (p *Mapper01ChrRom) Poke(addr memory.Ptr, val byte) {
 	if addr >= 0x2000 {
 		panic(fmt.Errorf("mapper 01 Character RAM address 0x%x is not writable", addr))
 	}
-	p.bin[addr] = val
+	bank := 0
+	if p.mapper.Registers[0]&0x10 != 0 {
+		// Swap 4K of VROM at PPU 0000h and 1000h
+		if addr >= 0x1000 {
+			bank = int(p.mapper.Registers[2] & 0x1f)
+		} else {
+			bank = int(p.mapper.Registers[1] & 0x1f)
+		}
+		p.bin[bank*ChrBankSize/2|int(addr&0x0fff)] = val
+	} else {
+		// Swap 8K of VROM at PPU 0000h
+		bank = int(p.mapper.Registers[1] & 0x1f)
+		p.bin[bank*ChrBankSize/2|int(addr)] = val
+	}
 }

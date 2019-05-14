@@ -1,6 +1,7 @@
 package nes
 
 import (
+	"fmt"
 	pkgLogger "github.com/vfreex/gones/pkg/emulator/common/logger"
 	"github.com/vfreex/gones/pkg/emulator/cpu"
 	"github.com/vfreex/gones/pkg/emulator/joypad"
@@ -8,6 +9,7 @@ import (
 	"github.com/vfreex/gones/pkg/emulator/ppu"
 	"github.com/vfreex/gones/pkg/emulator/ram"
 	"github.com/vfreex/gones/pkg/emulator/rom/ines"
+	"github.com/vfreex/gones/pkg/emulator/rom/mappers"
 	"time"
 )
 
@@ -75,29 +77,15 @@ func NewNes() NES {
 }
 
 func (nes *NESImpl) LoadCartridge(cartridge *ines.INesRom) error {
-	// load PRG-ROM
-	nes.cpuAS.AddMapping(0x4020, 0xbfe0, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
-		cartridge.Prg, nil)
-
-	// load CHR-ROM/CHR-RAM
-	nes.ppuAS.AddMapping(0, 0x2000, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
-		cartridge.Chr, nil)
-	if cartridge.Header.Flags6&ines.FLAGS6_FOUR_SCREEN_VRAM_ON != 0 {
-		nes.vram.SetNametableMirroring(0, 0)
-		nes.vram.SetNametableMirroring(1, 1)
-		nes.vram.SetNametableMirroring(2, 2)
-		nes.vram.SetNametableMirroring(3, 3)
-	} else if cartridge.Header.Flags6&ines.FLAGS6_VERTICAL_MIRRORING != 0 {
-		nes.vram.SetNametableMirroring(0, 0)
-		nes.vram.SetNametableMirroring(1, 1)
-		nes.vram.SetNametableMirroring(2, 0)
-		nes.vram.SetNametableMirroring(3, 1)
+	var mapper mappers.Mapper
+	mapperConstructor := mappers.MapperConstructors[cartridge.Header.GetMapperType()]
+	if mapperConstructor != nil {
+		mapper = mapperConstructor(cartridge, nes.vram)
 	} else {
-		nes.vram.SetNametableMirroring(0, 0)
-		nes.vram.SetNametableMirroring(1, 0)
-		nes.vram.SetNametableMirroring(2, 1)
-		nes.vram.SetNametableMirroring(3, 1)
+		panic(fmt.Errorf("cartridge uses unsupported mapper %v", cartridge.Header.GetMapperType()))
 	}
+	mappers.MapAddressSpaces(mapper, nes.cpuAS, nes.ppuAS)
+
 	nes.ppuAS.AddMapping(0x2000, 0x1000, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
 		nes.vram, nil)
 	return nil

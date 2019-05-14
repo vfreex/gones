@@ -32,7 +32,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/vfreex/gones/pkg/emulator/memory"
-	"github.com/vfreex/gones/pkg/emulator/rom/mappers"
 	"io"
 )
 
@@ -75,8 +74,10 @@ type INesRom struct {
 	Trainer []byte
 	Prg     memory.Memory
 	Chr     memory.Memory
+	PrgBin  []byte
+	ChrBin  []byte
 	Extra   []byte
-	Mapper  mappers.Mapper
+	//Mapper  mappers.Mapper
 }
 
 func NewINesRom(reader io.Reader) (*INesRom, error) {
@@ -110,20 +111,23 @@ func NewINesRom(reader io.Reader) (*INesRom, error) {
 		}
 	}
 
-	switch header.GetMapperType() {
-	case 0:
-		rom.Mapper = mappers.NewMapper00(prgBin, chrBin)
-	case 1:
-		rom.Mapper = mappers.NewMapper01(prgBin, chrBin)
-	case 2:
-		rom.Mapper = mappers.NewMapper02(prgBin, chrBin)
-	case 3:
-		rom.Mapper = mappers.NewMapper03(prgBin, chrBin)
-	default:
-		return rom, fmt.Errorf("unsupported Mapper type: %d", header.GetMapperType())
-	}
+	rom.PrgBin = prgBin
+	rom.ChrBin = chrBin
 
-	rom.Prg, rom.Chr = rom.Mapper.Map()
+	//switch header.GetMapperType() {
+	//case 0:
+	//	rom.Mapper = mappers.NewMapper00(prgBin, chrBin)
+	//case 1:
+	//	rom.Mapper = mappers.NewMapper01(prgBin, chrBin)
+	//case 2:
+	//	rom.Mapper = mappers.NewMapper02(prgBin, chrBin)
+	//case 3:
+	//	rom.Mapper = mappers.NewMapper03(prgBin, chrBin)
+	//default:
+	//	return rom, fmt.Errorf("unsupported Mapper type: %d", header.GetMapperType())
+	//}
+	//
+	//rom.Prg, rom.Chr = rom.Mapper.Map()
 
 	extra := &bytes.Buffer{}
 	if _, err := io.Copy(extra, reader); err != nil {
