@@ -28,6 +28,24 @@ func (p *CIRam) SetNametableMirroring(logical, physical int) {
 	}
 	p.mirroringMap[logical] = physical
 }
+func (p *CIRam) SetVerticalMirroring() {
+	p.mirroringMap[0] = 0
+	p.mirroringMap[1] = 1
+	p.mirroringMap[2] = 0
+	p.mirroringMap[3] = 1
+}
+func (p *CIRam) SetHorizontalMirroring() {
+	p.mirroringMap[0] = 0
+	p.mirroringMap[1] = 0
+	p.mirroringMap[2] = 1
+	p.mirroringMap[3] = 1
+}
+func (p *CIRam) SetFourScreenMirroring() {
+	p.mirroringMap[0] = 0
+	p.mirroringMap[1] = 1
+	p.mirroringMap[2] = 2
+	p.mirroringMap[3] = 3
+}
 func (p *CIRam) mapAddr(addr memory.Ptr) memory.Ptr {
 	logical := (addr & 0xfff) / 0x400
 	physical := p.mirroringMap[logical]
@@ -48,6 +66,9 @@ func (p *CIRam) Poke(addr memory.Ptr, val byte) {
 	p.ram[p.mapAddr(addr)] = val
 }
 
-type NametableMirrorer interface {
+type NametableMirrorController interface {
 	SetNametableMirroring(logical, physical int)
+	SetVerticalMirroring()
+	SetHorizontalMirroring()
+	SetFourScreenMirroring()
 }
