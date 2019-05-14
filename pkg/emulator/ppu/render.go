@@ -52,7 +52,6 @@ func (ppu *PPUImpl) renderSprites() {
 			sprite.TileId = int(ppu.sprRam.Peek(memory.Ptr(spriteIndex*4 + 1)))
 			sprite.X = int(ppu.sprRam.Peek(memory.Ptr(spriteIndex*4 + 3)))
 			sprite.Attr.Unmarshal(ppu.sprRam.Peek(memory.Ptr(spriteIndex*4 + 2)))
-			//sprite.Unmarshal(spriteIndex, &spriteBytes)
 			ppu.spriteCount++
 		}
 		if ppu.spriteCount > 0 {
@@ -162,7 +161,11 @@ func (ppu *PPUImpl) drawPixel() {
 				break
 			}
 		}
-		ppu.RenderedBuffer[y][x] = Color(ppu.Palette.Peek(0x3F00 + memory.Ptr(currentPalette))).ToGRBColor()
+		color := ppu.Palette.Peek(0x3F00 + memory.Ptr(currentPalette))
+		if ppu.registers.mask & PPUMask_Greyscale != 0 {
+			color &= 0x30
+		}
+		ppu.RenderedBuffer[y][x] = Color(color).ToGRBColor()
 	}
 	ppu.registers.bgHighShift <<= 1
 	ppu.registers.bgLowShift <<= 1
@@ -170,8 +173,8 @@ func (ppu *PPUImpl) drawPixel() {
 	ppu.registers.attrLowShift <<= 1
 }
 
-func (ppu *PPUImpl) fetchBgTileRow(cycle int) {
-	switch cycle {
+func (ppu *PPUImpl) fetchBgTileRow(step int) {
+	switch step {
 	case 1:
 		// fetch nametable
 		ntAddr := 0x2000 | ppu.registers.v.Address()&0xfff
