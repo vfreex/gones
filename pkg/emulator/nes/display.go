@@ -30,6 +30,7 @@ type NesDiplay struct {
 	NextCh          chan int
 	StepInstruction bool
 	StepFrame       bool
+	RequestReset    bool
 	PressedKeys     byte
 	ReleasedKeys    byte
 	Keys            byte
@@ -73,9 +74,7 @@ func NewDisplay(screenPixels *[SCREEN_HEIGHT][SCREEN_WIDTH]ppu.RBGColor) *NesDip
 					display.NextCh <- 1
 				}),
 				widget.NewButton("RESET", func() {
-					display.StepInstruction = true
-					display.StepFrame = false
-					display.NextCh <- 0xff
+					display.RequestReset = true
 				}),
 			),
 		))

@@ -111,12 +111,12 @@ func (nes *NESImpl) Start() error {
 			spentCycles := int64(0)
 			loop := 0
 			for spentCycles < int64(cpuCyclesPerFrame) {
+				if nes.display.RequestReset {
+					nes.cpu.Reset()
+					nes.display.RequestReset = false
+				}
 				if nes.display.StepInstruction {
-					ch := <-nes.display.NextCh
-					if ch == 0xff {
-						nes.cpu.Reset()
-						// TODO: also reset PPU?
-					}
+					<-nes.display.NextCh
 				}
 				cycles := int64(cpu.ExecOneInstruction())
 				//cycles := int64(1)
