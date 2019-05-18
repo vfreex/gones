@@ -58,7 +58,6 @@ func NewNes() NES {
 			return addr - 0x4000
 		})
 	//nes.cpuAS.AddMapping(0x4014, 1, memory.MMAP_MODE_WRITE,
-	//memory.NewOamDma(nes.cpuAS, &nes.ppu.sprRam), nil)
 	nes.ppu.MapToCPUAddressSpace(nes.cpuAS)
 	// fake memory map range
 	nes.cpuAS.AddMapping(0x4015, 1, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
@@ -86,7 +85,7 @@ func (nes *NESImpl) LoadCartridge(cartridge *ines.INesRom) error {
 	}
 	mappers.MapAddressSpaces(mapper, nes.cpuAS, nes.ppuAS)
 
-	nes.ppuAS.AddMapping(0x2000, 0x1000, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
+	nes.ppuAS.AddMapping(0x2000, 0x1f00, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
 		nes.vram, nil)
 	return nil
 }

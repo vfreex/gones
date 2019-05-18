@@ -75,10 +75,10 @@ func (p *NROMMapper) PeekChr(addr memory.Ptr) byte {
 }
 
 func (p *NROMMapper) PokeChr(addr memory.Ptr, val byte) {
-	if !p.useChrRam {
+	if addr >= 0x2000 {
 		panic(fmt.Errorf("mapper 0 CHR-ROM/CHR-RAM %04x is not configured", addr))
 	}
-	if addr >= 0x2000 {
+	if p.useChrRam {
 		panic(fmt.Errorf("this mapper 0 cartridge uses CHR-ROM, writing address %04x is not possible", addr))
 	}
 	p.chrBin[addr] = val
