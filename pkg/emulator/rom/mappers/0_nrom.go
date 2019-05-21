@@ -3,24 +3,20 @@ package mappers
 import (
 	"fmt"
 	"github.com/vfreex/gones/pkg/emulator/memory"
-	"github.com/vfreex/gones/pkg/emulator/ram"
 	"github.com/vfreex/gones/pkg/emulator/rom/ines"
 )
 
 type NROMMapper struct {
 	mapperBase
 	prgBankMapping [2]int
-	prgRam         [0x3fe0]byte
-	useChrRam      bool
 }
 
 func init() {
 	MapperConstructors[0] = NewNROMMapper
 }
 
-func NewNROMMapper(rom *ines.INesRom, mirroringController ram.NametableMirrorController) Mapper {
+func NewNROMMapper(rom *ines.INesRom) Mapper {
 	p := &NROMMapper{}
-	p.MirroringController = mirroringController
 	p.prgBin = rom.PrgBin
 	if len(p.prgBin) > PrgBankSize {
 		p.prgBankMapping[1] = 1
@@ -31,16 +27,6 @@ func NewNROMMapper(rom *ines.INesRom, mirroringController ram.NametableMirrorCon
 		// cartridge use CHR-RAM rather than CHR-ROM
 		p.chrBin = make([]byte, ChrBankSize)
 		p.useChrRam = true
-	}
-	if rom.Header.Flags6&ines.FLAGS6_FOUR_SCREEN_VRAM_ON != 0 {
-		mirroringController.SetNametableMirroring(0, 0)
-		mirroringController.SetNametableMirroring(1, 1)
-		mirroringController.SetNametableMirroring(2, 2)
-		mirroringController.SetNametableMirroring(3, 3)
-	} else if rom.Header.Flags6&ines.FLAGS6_VERTICAL_MIRRORING != 0 {
-		mirroringController.SetVerticalMirroring()
-	} else {
-		mirroringController.SetHorizontalMirroring()
 	}
 	return p
 }

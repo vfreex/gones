@@ -76,10 +76,26 @@ func NewNes() NES {
 }
 
 func (nes *NESImpl) LoadCartridge(cartridge *ines.INesRom) error {
+	if cartridge.Header.Flags6&ines.FLAGS6_FOUR_SCREEN_VRAM_ON != 0 {
+		nes.vram.SetNametableMirroring(0,0)
+		nes.vram.SetNametableMirroring(1,1)
+		nes.vram.SetNametableMirroring(2,2)
+		nes.vram.SetNametableMirroring(3,3)
+	} else if cartridge.Header.Flags6&ines.FLAGS6_VERTICAL_MIRRORING != 0 {
+		nes.vram.SetNametableMirroring(0,0)
+		nes.vram.SetNametableMirroring(1,1)
+		nes.vram.SetNametableMirroring(2,0)
+		nes.vram.SetNametableMirroring(3,1)
+	} else {
+		nes.vram.SetNametableMirroring(0,0)
+		nes.vram.SetNametableMirroring(1,0)
+		nes.vram.SetNametableMirroring(2,1)
+		nes.vram.SetNametableMirroring(3,1)
+	}
 	var mapper mappers.Mapper
 	mapperConstructor := mappers.MapperConstructors[cartridge.Header.GetMapperType()]
 	if mapperConstructor != nil {
-		mapper = mapperConstructor(cartridge, nes.vram)
+		mapper = mapperConstructor(cartridge)
 	} else {
 		panic(fmt.Errorf("cartridge uses unsupported mapper %v", cartridge.Header.GetMapperType()))
 	}
@@ -87,6 +103,12 @@ func (nes *NESImpl) LoadCartridge(cartridge *ines.INesRom) error {
 
 	nes.ppuAS.AddMapping(0x2000, 0x1f00, memory.MMAP_MODE_READ|memory.MMAP_MODE_WRITE,
 		nes.vram, nil)
+
+	// mapper may change nametable mirroring at runtime
+	mapper.AddNametableMirroringChangeListener(func(logical, physical int) {
+		nes.vram.SetNametableMirroring(logical, physical)
+	})
+
 	return nil
 }
 

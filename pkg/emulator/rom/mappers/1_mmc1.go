@@ -3,13 +3,11 @@ package mappers
 import (
 	"fmt"
 	"github.com/vfreex/gones/pkg/emulator/memory"
-	"github.com/vfreex/gones/pkg/emulator/ram"
 	"github.com/vfreex/gones/pkg/emulator/rom/ines"
 )
 
 type MMC1Mapper struct {
 	mapperBase
-	prgRam        [0x3fe0]byte
 	shiftRegister byte
 	writeCounter  int
 	registers     [4]byte
@@ -20,9 +18,8 @@ func init() {
 	MapperConstructors[1] = NewMMC1Mapper
 }
 
-func NewMMC1Mapper(rom *ines.INesRom, mirroringController ram.NametableMirrorController) Mapper {
+func NewMMC1Mapper(rom *ines.INesRom) Mapper {
 	p := &MMC1Mapper{}
-	p.MirroringController = mirroringController
 	p.prgBin = rom.PrgBin
 	if len(rom.ChrBin) > 0 {
 		p.chrBin = rom.ChrBin
@@ -102,19 +99,25 @@ func (p *MMC1Mapper) PokePrg(addr memory.Ptr, val byte) {
 			// TODO: cartridge set nametable mirroring
 			switch p.registers[0] & 0x3 {
 			case 0: // one-screen, lower bank;
-				p.MirroringController.SetNametableMirroring(0, 0)
-				p.MirroringController.SetNametableMirroring(1, 0)
-				p.MirroringController.SetNametableMirroring(2, 0)
-				p.MirroringController.SetNametableMirroring(3, 0)
+				p.notifyNametableMirroringChangeListener(0, 0)
+				p.notifyNametableMirroringChangeListener(1, 0)
+				p.notifyNametableMirroringChangeListener(2, 0)
+				p.notifyNametableMirroringChangeListener(3, 0)
 			case 1: // one-screen, upper bank;
-				p.MirroringController.SetNametableMirroring(0, 1)
-				p.MirroringController.SetNametableMirroring(1, 1)
-				p.MirroringController.SetNametableMirroring(2, 1)
-				p.MirroringController.SetNametableMirroring(3, 1)
+				p.notifyNametableMirroringChangeListener(0, 1)
+				p.notifyNametableMirroringChangeListener(1, 1)
+				p.notifyNametableMirroringChangeListener(2, 1)
+				p.notifyNametableMirroringChangeListener(3, 1)
 			case 2: // Two-Screen Vertical Mirroring
-				p.MirroringController.SetVerticalMirroring()
+				p.notifyNametableMirroringChangeListener(0, 0)
+				p.notifyNametableMirroringChangeListener(1, 1)
+				p.notifyNametableMirroringChangeListener(2, 0)
+				p.notifyNametableMirroringChangeListener(3, 1)
 			case 3: // Two-Screen Horizontal Mirroring
-				p.MirroringController.SetHorizontalMirroring()
+				p.notifyNametableMirroringChangeListener(0, 0)
+				p.notifyNametableMirroringChangeListener(1, 0)
+				p.notifyNametableMirroringChangeListener(2, 1)
+				p.notifyNametableMirroringChangeListener(3, 1)
 			}
 		}
 	}

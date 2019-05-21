@@ -2,7 +2,6 @@ package mappers
 
 import (
 	"github.com/vfreex/gones/pkg/emulator/memory"
-	"github.com/vfreex/gones/pkg/emulator/ram"
 	"github.com/vfreex/gones/pkg/emulator/rom/ines"
 )
 
@@ -20,16 +19,31 @@ type Mapper interface {
 	PokePrg(addr memory.Ptr, val byte)
 	PeekChr(addr memory.Ptr) byte
 	PokeChr(addr memory.Ptr, val byte)
+	AddNametableMirroringChangeListener(listener NametableMirroringChangeListener)
 }
 
-type MapperConstructor func(rom *ines.INesRom, mirroringController ram.NametableMirrorController) Mapper
+type MapperINesConstructor func(rom *ines.INesRom) Mapper
 
-var MapperConstructors map[int]MapperConstructor = make(map[int]MapperConstructor)
+var MapperConstructors map[int]MapperINesConstructor = make(map[int]MapperINesConstructor)
+
+type NametableMirroringChangeListener func(logical, physical int)
 
 type mapperBase struct {
-	prgBin              []byte
-	chrBin              []byte
-	MirroringController ram.NametableMirrorController
+	prgBin                            []byte
+	chrBin                            []byte
+	useChrRam                         bool
+	prgRam                            [0x3fe0]byte
+	nametableMirroringChangeListeners []NametableMirroringChangeListener
+}
+
+func (p *mapperBase) AddNametableMirroringChangeListener(listener NametableMirroringChangeListener) {
+	p.nametableMirroringChangeListeners = append(p.nametableMirroringChangeListeners, listener)
+}
+
+func (p *mapperBase) notifyNametableMirroringChangeListener(logical, physical int) {
+	for _, listener := range p.nametableMirroringChangeListeners {
+		listener(logical, physical)
+	}
 }
 
 type MapperPrgMemoryAdapter struct {
