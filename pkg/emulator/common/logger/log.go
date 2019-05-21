@@ -34,11 +34,11 @@ func NewLogger() *ZapLogger {
 }
 
 func (l *ZapLogger) Debug(msg string) {
-	l.logger.Debug(msg)
+	//l.logger.Debug(msg)
 }
 
 func (l *ZapLogger) Debugf(msg string, args ...interface{}) {
-	l.suger.Debugf(msg, args...)
+	//l.suger.Debugf(msg, args...)
 }
 
 func (l *ZapLogger) Info(msg string) {
