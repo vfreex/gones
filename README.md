@@ -1,6 +1,6 @@
 # GoNES: Yet Another NES Emulator Written in Go
 
-Latest version: 0.1-alpha
+Latest version: 0.3.0-beta
 
 NOTE: This project is under active development.
 Defects and bugs are expected.
@@ -18,7 +18,7 @@ A cross-platform and portable NES emulator written Go.
 ## Installation
 
 ### Prebuilt binaries
-Not available yet.
+You can [download a prebuilt binary](https://github.com/vfreex/gones/releases).
 
 ### Build from source
 ```sh
@@ -34,6 +34,12 @@ gones <game>.nes
 ```
 
 Or if you are using GUI, just drag your `.NES` file to `gones` binary file.
+
+![demo-01-cmd](docs/assets/demo-01-cmd.gif)
+
+Then the game will start:
+
+![demo-02-nova](docs/assets/demo-02-nova.gif)
 
 ## Default Keymap
 ### First Player

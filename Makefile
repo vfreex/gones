@@ -9,4 +9,7 @@ test: build
 deps:
 	go mod download
 
-.PHONY: all gen build test deps
+install: build
+	go install cmd/gones/gones.go
+
+.PHONY: all gen build test deps install
