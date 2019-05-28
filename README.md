@@ -46,7 +46,7 @@ Then the game will start:
 | NES Key           | PC               | Mac          |
 |-------------------|------------------|--------------|
 | <kbd>Start</kbd>  | <kbd>Enter</kbd> | <kbd>↩</kbd> |
-| <kbd>Select</kbd> | <kbd>Ctrl</kbd>  | <kbd>⌃</kbd> |
+| <kbd>Select</kbd> | <kbd>Tab</kbd>  | <kbd>⇥</kbd> |
 | <kbd>←</kbd>      | <kbd>Left</kbd>  | <kbd>←</kbd> |
 | <kbd>→</kbd>      | <kbd>Right</kbd> | <kbd>→</kbd> |
 | <kbd>↑</kbd>      | <kbd>Up</kbd>    | <kbd>↑</kbd> |
