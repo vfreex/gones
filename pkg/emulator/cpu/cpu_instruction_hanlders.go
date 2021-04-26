@@ -654,9 +654,9 @@ func (cpu *Cpu) ExecROR(operandAddr memory.Ptr) int {
 
 func (cpu *Cpu) ExecBRK(operandAddr memory.Ptr) int {
 	logger.Debug(";; Exec BRK")
-	cpu.P.Set(PFLAG_B, true)
 	cpu.PushW(cpu.PC + 1)
-	cpu.Push(byte(cpu.P))
+	p := cpu.P | PFLAG_B | PFLAG_UNUSED
+	cpu.Push(byte(p))
 	cpu.P.Set(PFLAG_I, true)
 	cpu.PC = cpu.ReadInterruptVector(IV_BRK)
 	return 6
