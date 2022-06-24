@@ -1,17 +1,20 @@
 package nes
 
 import (
-	"fyne.io/fyne"
-	"fyne.io/fyne/app"
-	"fyne.io/fyne/canvas"
-	"fyne.io/fyne/driver/desktop"
-	"fyne.io/fyne/widget"
-	"github.com/vfreex/gones/pkg/emulator/joypad"
-	"github.com/vfreex/gones/pkg/emulator/ppu"
 	"image"
 	"image/color"
 	"math/rand"
 	"time"
+
+	"github.com/vfreex/gones/pkg/emulator/joypad"
+	"github.com/vfreex/gones/pkg/emulator/ppu"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/widget"
 )
 
 // resolution 256x240
@@ -25,8 +28,7 @@ type NesDiplay struct {
 	screenPixels    *[SCREEN_HEIGHT][SCREEN_WIDTH]ppu.RBGColor
 	app             fyne.App
 	mainWindow      fyne.Window
-	raster          *canvas.Raster
-	canvasObj       fyne.CanvasObject
+	canvasObj       *canvas.Image
 	NextCh          chan int
 	StepInstruction bool
 	StepFrame       bool
@@ -34,7 +36,7 @@ type NesDiplay struct {
 	PressedKeys     byte
 	ReleasedKeys    byte
 	Keys            byte
-	img             *image.RGBA
+	img             *image.NRGBA
 }
 
 var rnd = rand.New(rand.NewSource(time.Now().Unix()))
@@ -52,8 +54,8 @@ func NewDisplay(screenPixels *[SCREEN_HEIGHT][SCREEN_WIDTH]ppu.RBGColor) *NesDip
 	}
 	gameCanvas := display.render()
 	mainWindow.SetContent(
-		widget.NewVBox(gameCanvas,
-			widget.NewHBox(
+		container.NewVBox(gameCanvas,
+			container.NewHBox(
 				widget.NewButton(">", func() {
 					display.StepInstruction = true
 					display.StepFrame = false
@@ -102,11 +104,9 @@ func NewDisplay(screenPixels *[SCREEN_HEIGHT][SCREEN_WIDTH]ppu.RBGColor) *NesDip
 			display.Keys |= joypad.Button_B
 		case fyne.KeyX:
 			display.Keys |= joypad.Button_A
-		case fyne.KeyTab:
+		case desktop.KeyControlLeft:
 			fallthrough
-		case "LeftControl":
-			fallthrough
-		case "RightControl":
+		case desktop.KeyControlRight:
 			display.Keys |= joypad.Button_Select
 		}
 	})
@@ -134,11 +134,9 @@ func NewDisplay(screenPixels *[SCREEN_HEIGHT][SCREEN_WIDTH]ppu.RBGColor) *NesDip
 			display.Keys &= ^ joypad.Button_B
 		case fyne.KeyX:
 			display.Keys &= ^ joypad.Button_A
-		case fyne.KeyTab:
+		case desktop.KeyControlLeft:
 			fallthrough
-		case "LeftControl":
-			fallthrough
-		case "RightControl":
+		case desktop.KeyControlRight:
 			display.Keys &= ^ joypad.Button_Select
 		}
 	})
@@ -147,24 +145,10 @@ func NewDisplay(screenPixels *[SCREEN_HEIGHT][SCREEN_WIDTH]ppu.RBGColor) *NesDip
 }
 
 func (p *NesDiplay) render() fyne.CanvasObject {
-	//p.update()
-	lastW, lastH := 0, 0
-	p.raster = canvas.NewRaster(func(w, h int) image.Image {
-		if p.img == nil || w != lastW || h != lastH {
-			p.img = image.NewRGBA(image.Rect(0, 0, w, h))
-			lastW = w
-			lastH = h
-		}
-		for y := 0; y < h; y++ {
-			for x := 0; x < w; x++ {
-				pixel := p.screenPixels[y*SCREEN_HEIGHT/h][x*SCREEN_WIDTH/w]
-				p.img.SetRGBA(x, y, color.RGBA{R: byte(pixel >> 16), G: byte(pixel >> 8), B: byte(pixel >> 0), A: 0xff})
-			}
-		}
-		return p.img
-	})
-	p.raster.SetMinSize(fyne.NewSize(SCREEN_WIDTH*2, SCREEN_HEIGHT*2))
-	p.canvasObj = p.raster
+	p.img = image.NewNRGBA(image.Rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT))
+	p.canvasObj = canvas.NewImageFromImage(p.img)
+	p.canvasObj.ScaleMode = canvas.ImageScalePixels
+	p.canvasObj.SetMinSize(fyne.NewSize(SCREEN_WIDTH*2, SCREEN_HEIGHT*2))
 	return p.canvasObj
 }
 
@@ -174,5 +158,12 @@ func (p *NesDiplay) Show() {
 
 func (p *NesDiplay) Refresh() {
 	//temp += 0x100000
-	p.mainWindow.Canvas().Refresh(p.canvasObj)
+	for y := 0; y < SCREEN_HEIGHT; y++ {
+		for x := 0; x < SCREEN_WIDTH; x++ {
+			pixel := p.screenPixels[y][x]
+			p.img.SetNRGBA(x, y, color.NRGBA{R: byte(pixel >> 16), G: byte(pixel >> 8), B: byte(pixel >> 0), A: 0xff})
+		}
+	}
+
+	p.canvasObj.Refresh()
 }

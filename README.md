@@ -43,15 +43,15 @@ Then the game will start:
 
 ## Default Keymap
 ### First Player
-| NES Key           | PC               | Mac          |
-|-------------------|------------------|--------------|
-| <kbd>Start</kbd>  | <kbd>Enter</kbd> | <kbd>↩</kbd> |
-| <kbd>Select</kbd> | <kbd>Tab</kbd>  | <kbd>⇥</kbd> |
-| <kbd>←</kbd>      | <kbd>Left</kbd>  | <kbd>←</kbd> |
-| <kbd>→</kbd>      | <kbd>Right</kbd> | <kbd>→</kbd> |
-| <kbd>↑</kbd>      | <kbd>Up</kbd>    | <kbd>↑</kbd> |
-| <kbd>↓</kbd>      | <kbd>Down</kbd>  | <kbd>↓</kbd> |
-| <kbd>A</kbd>      | <kbd>X</kbd>     | <kbd>X</kbd> |
-| <kbd>B</kbd>      | <kbd>Z</kbd>     | <kbd>Z</kbd> |
+| NES Key           | PC                 | Mac          |
+|-------------------|--------------------|--------------|
+| <kbd>Start</kbd>  | <kbd>Enter</kbd>   | <kbd>↩</kbd> |
+| <kbd>Select</kbd> | <kbd>Control</kbd> | <kbd>⌃</kbd> |
+| <kbd>←</kbd>      | <kbd>Left</kbd>    | <kbd>←</kbd> |
+| <kbd>→</kbd>      | <kbd>Right</kbd>   | <kbd>→</kbd> |
+| <kbd>↑</kbd>      | <kbd>Up</kbd>      | <kbd>↑</kbd> |
+| <kbd>↓</kbd>      | <kbd>Down</kbd>    | <kbd>↓</kbd> |
+| <kbd>A</kbd>      | <kbd>X</kbd>       | <kbd>X</kbd> |
+| <kbd>B</kbd>      | <kbd>Z</kbd>       | <kbd>Z</kbd> |
 
 

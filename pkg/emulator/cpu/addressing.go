@@ -32,7 +32,7 @@ func (cpu *Cpu) AddressOperand(am AddressingMode) (memory.Ptr, int) {
 	case IZY:
 		return cpu.AddressIzy()
 	default:
-		panic(fmt.Errorf("unsupported addressing mode: %s", am))
+		panic(fmt.Errorf("unsupported addressing mode: %d", am))
 	}
 }
 
