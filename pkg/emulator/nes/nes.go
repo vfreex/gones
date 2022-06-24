@@ -130,7 +130,7 @@ func (nes *NESImpl) Start() error {
 	go func() {
 		for tick := range nes.ticker.C {
 			//tick:=time.Now()
-			logger.Infof("At time %v", tick)
+			logger.Debugf("At time %v", tick)
 
 			spentCycles := int64(0)
 			loop := 0
@@ -153,16 +153,16 @@ func (nes *NESImpl) Start() error {
 				spentCycles += cycles
 				loop++
 				//logger.Debug("")
-				//logger.Infof("spent %d/%d CPU cycles", spentCycles, cpuCyclesPerFrame)
+				//logger.Debugf("spent %d/%d CPU cycles", spentCycles, cpuCyclesPerFrame)
 			}
 			//nes.display.Refresh()
 			// update joypad
 			nes.joypads.Joypads[0].Buttons = nes.display.Keys
 			//logger.SetOutput(os.Stderr)
-			logger.Info("----------------------------------------------------------")
+			logger.Debug("----------------------------------------------------------")
 			now := time.Now()
 			actualTime := now.Sub(tick)
-			logger.Infof("spent %v/%v to render frame #%d after running %v loops / %v cycles",
+			logger.Debugf("spent %v/%v to render frame #%d after running %v loops / %v cycles",
 				actualTime, interval, frames, loop, spentCycles)
 			frames++
 			//nes.ticker.Stop()
