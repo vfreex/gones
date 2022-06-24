@@ -1,11 +1,12 @@
 package nes
 
 import (
-	"fyne.io/fyne"
-	"fyne.io/fyne/app"
-	"fyne.io/fyne/canvas"
-	"fyne.io/fyne/driver/desktop"
-	"fyne.io/fyne/widget"
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/widget"
 	"github.com/vfreex/gones/pkg/emulator/joypad"
 	"github.com/vfreex/gones/pkg/emulator/ppu"
 	"image"
@@ -52,8 +53,8 @@ func NewDisplay(screenPixels *[SCREEN_HEIGHT][SCREEN_WIDTH]ppu.RBGColor) *NesDip
 	}
 	gameCanvas := display.render()
 	mainWindow.SetContent(
-		widget.NewVBox(gameCanvas,
-			widget.NewHBox(
+		container.NewVBox(gameCanvas,
+			container.NewHBox(
 				widget.NewButton(">", func() {
 					display.StepInstruction = true
 					display.StepFrame = false
