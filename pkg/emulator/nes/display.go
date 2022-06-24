@@ -1,18 +1,20 @@
 package nes
 
 import (
+	"image"
+	"image/color"
+	"math/rand"
+	"time"
+
+	"github.com/vfreex/gones/pkg/emulator/joypad"
+	"github.com/vfreex/gones/pkg/emulator/ppu"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
-	"github.com/vfreex/gones/pkg/emulator/joypad"
-	"github.com/vfreex/gones/pkg/emulator/ppu"
-	"image"
-	"image/color"
-	"math/rand"
-	"time"
 )
 
 // resolution 256x240
@@ -103,11 +105,9 @@ func NewDisplay(screenPixels *[SCREEN_HEIGHT][SCREEN_WIDTH]ppu.RBGColor) *NesDip
 			display.Keys |= joypad.Button_B
 		case fyne.KeyX:
 			display.Keys |= joypad.Button_A
-		case fyne.KeyTab:
+		case desktop.KeyControlLeft:
 			fallthrough
-		case "LeftControl":
-			fallthrough
-		case "RightControl":
+		case desktop.KeyControlRight:
 			display.Keys |= joypad.Button_Select
 		}
 	})
@@ -135,11 +135,9 @@ func NewDisplay(screenPixels *[SCREEN_HEIGHT][SCREEN_WIDTH]ppu.RBGColor) *NesDip
 			display.Keys &= ^ joypad.Button_B
 		case fyne.KeyX:
 			display.Keys &= ^ joypad.Button_A
-		case fyne.KeyTab:
+		case desktop.KeyControlLeft:
 			fallthrough
-		case "LeftControl":
-			fallthrough
-		case "RightControl":
+		case desktop.KeyControlRight:
 			display.Keys &= ^ joypad.Button_Select
 		}
 	})
