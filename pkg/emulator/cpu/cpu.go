@@ -117,9 +117,9 @@ func (cpu *Cpu) logInstruction() {
 	case 1:
 		arguments[0] = cpu.Memory.Peek(cpu.PC + 1)
 	}
-	logger.Debugf("L%04x: %s %s ; %02x (%s-%s) %s",
+	logger.Debugf("L%04x: %s %s ; %02x (%s-%d) %s",
 		cpu.PC, info.Nemonics, formatInstructionArgument(info.AddressingMode, arguments),
-		opcode, info.Nemonics, info.AddressingMode.String(), hex.EncodeToString(arguments))
+		opcode, info.Nemonics, info.AddressingMode, hex.EncodeToString(arguments))
 }
 
 func formatInstructionArgument(am AddressingMode, args []byte) string {

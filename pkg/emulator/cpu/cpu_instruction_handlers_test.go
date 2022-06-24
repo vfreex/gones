@@ -10,11 +10,11 @@ func TestOpcodeHandlers(t *testing.T) {
 	for opcode, info := range InstructionInfos {
 		handler := opcodeHandlers[opcode]
 		if handler == nil {
-			log.Printf("Opcode %02x (%s %s) is not implmeneted yet.", opcode, info.Nemonics, info.AddressingMode)
+			log.Printf("Opcode %02x (%s %d) is not implmeneted yet.", opcode, info.Nemonics, info.AddressingMode)
 			continue
 		}
 		if handler.AddressingMode != info.AddressingMode {
-			t.Fatalf("BUG: Addressing mode for %02x opcodeHandlers doesn't match the info in InstructionInfos: got %s, expected: %s",
+			t.Fatalf("BUG: Addressing mode for %02x opcodeHandlers doesn't match the info in InstructionInfos: got %d, expected: %d",
 				opcode, handler.AddressingMode, info.AddressingMode)
 		}
 	}

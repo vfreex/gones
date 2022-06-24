@@ -79,8 +79,8 @@ func main() {
 			inst.VariableCycles = m[4] != ""
 
 			fmt.Printf("opcode=%02x: %v\n", opcode, inst)
-			fmt.Fprintf(fout, "0x%02x: {0x%02x, \"%s\", %s, %d, %v},\n",
-				inst.OpCode, inst.OpCode, inst.Nemonics, inst.AddressingMode.String(), inst.Cycles, inst.VariableCycles)
+			fmt.Fprintf(fout, "0x%02x: {0x%02x, \"%s\", %d, %d, %v},\n",
+				inst.OpCode, inst.OpCode, inst.Nemonics, inst.AddressingMode, inst.Cycles, inst.VariableCycles)
 		}
 		row++
 	}
